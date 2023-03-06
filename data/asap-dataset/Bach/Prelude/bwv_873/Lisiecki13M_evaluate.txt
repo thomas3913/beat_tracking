@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_873/Lisiecki13M.wav
+F-measure	0.4814305364511692	0.4833333333333334
+Cemgil	0.43494107421296097	0.40753284922228045
+Cemgil Best Metric Level	0.43494107421296097	0.40753284922228045
+Goto	0.0	0.0
+P-score	0.33089579524680074	0.3333333333333333
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.0
+Any Metric Level Total	0.0	0.0
+Information gain	0.406358301276804	0.5289177834254949

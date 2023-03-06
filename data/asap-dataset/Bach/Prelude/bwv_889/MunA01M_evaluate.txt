@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_889/MunA01M.wav
+F-measure	0.6382978723404255	0.0
+Cemgil	0.6334424359294816	3.3371270951067275e-33
+Cemgil Best Metric Level	0.9377397106926978	8.365950018001018e-33
+Goto	0.0	0.0
+P-score	0.4880952380952381	0.5
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.49603174603174605	0.0
+Any Metric Level Total	0.9484126984126984	0.0
+Information gain	0.643350496503003	0.7322342762011914

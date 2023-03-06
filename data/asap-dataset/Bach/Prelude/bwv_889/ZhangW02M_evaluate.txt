@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_889/ZhangW02M.wav
+F-measure	0.6453333333333333	0.0
+Cemgil	0.6300420107771014	3.4875336586910374e-25
+Cemgil Best Metric Level	0.924587141372013	2.647723193537158e-13
+Goto	0.0	0.0
+P-score	0.4880952380952381	0.4838709677419355
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.47619047619047616	0.0
+Any Metric Level Total	0.9404761904761905	0.0
+Information gain	0.5648148235613969	0.6080536406025417

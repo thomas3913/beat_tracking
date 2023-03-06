@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_856/LuoJ01M.wav
+F-measure	0.378698224852071	0.0
+Cemgil	0.35906221942813066	4.58872147024684e-09
+Cemgil Best Metric Level	0.35906221942813066	0.08339306205925011
+Goto	0.0	0.0
+P-score	0.32038834951456313	0.4
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.007633587786259542	0.0
+Any Metric Level Total	0.007633587786259542	0.0
+Information gain	0.3831290780110786	0.3748497321493628

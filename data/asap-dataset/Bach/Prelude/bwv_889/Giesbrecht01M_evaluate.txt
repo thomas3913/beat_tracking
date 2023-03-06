@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_889/Giesbrecht01M.wav
+F-measure	0.6577540106951871	0.0
+Cemgil	0.6483731616893706	3.698175010282589e-40
+Cemgil Best Metric Level	0.960403511583602	2.5376281395730836e-37
+Goto	0.0	0.0
+P-score	0.492	0.5
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.98	0.0
+Any Metric Level Total	0.98	0.0
+Information gain	0.650298312709883	0.7414277017772554

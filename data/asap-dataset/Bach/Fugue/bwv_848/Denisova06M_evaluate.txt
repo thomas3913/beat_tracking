@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_848/Denisova06M.wav
+F-measure	0.981132075471698	1.0
+Cemgil	0.9648116110544225	0.9711973677353998
+Cemgil Best Metric Level	0.9648116110544225	0.9711973677353998
+Goto	1.0	1.0
+P-score	0.9674418604651163	1.0
+Correct Metric Level Continuous	0.9627906976744186	1.0
+Correct Metric Level Total	0.9627906976744186	1.0
+Any Metric Level Continuous	0.9627906976744186	1.0
+Any Metric Level Total	0.9627906976744186	1.0
+Information gain	0.7067170063024719	1.0

@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_860/Tetzloff04M.wav
+F-measure	0.48011782032400585	0.64
+Cemgil	0.4630192101055103	0.5954142674855292
+Cemgil Best Metric Level	0.4630192101055103	0.855121285339934
+Goto	0.0	0.0
+P-score	0.328125	0.49101796407185627
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.9520958083832335
+Any Metric Level Total	0.0	0.9760479041916168
+Information gain	0.4111969282856886	0.5961900719989547

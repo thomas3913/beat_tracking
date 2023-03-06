@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_867/Sham01M.wav
+F-measure	0.6471910112359551	0.0
+Cemgil	0.6341722245546794	2.9996510743100083e-108
+Cemgil Best Metric Level	0.9293406767980839	0.8734105418930452
+Goto	0.0	0.0
+P-score	0.48333333333333334	0.0
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.81	1.0
+Any Metric Level Total	0.9466666666666667	1.0
+Information gain	0.591690979176344	0.8108670638912638

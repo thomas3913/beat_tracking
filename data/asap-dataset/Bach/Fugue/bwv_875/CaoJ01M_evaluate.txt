@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_875/CaoJ01M.wav
+F-measure	0.6349206349206349	0.0
+Cemgil	0.6218074508754201	5.045146157188952e-132
+Cemgil Best Metric Level	0.9273979415369678	5.96244545848002e-132
+Goto	0.0	0.0
+P-score	0.47417840375586856	0.0
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.9389671361502347	0.0
+Any Metric Level Total	0.9389671361502347	0.0
+Information gain	0.5982622224428105	0.6112012441653953

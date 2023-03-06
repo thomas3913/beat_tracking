@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_870/LeeE01M.wav
+F-measure	0.9777777777777777	0.6440677966101694
+Cemgil	0.9660290468430079	0.6336688663827066
+Cemgil Best Metric Level	0.9660290468430079	0.9464927371285997
+Goto	1.0	0.0
+P-score	0.9625	0.48717948717948717
+Correct Metric Level Continuous	0.9625	0.0
+Correct Metric Level Total	0.9625	0.0
+Any Metric Level Continuous	0.9625	0.975
+Any Metric Level Total	0.9625	0.975
+Information gain	0.7250343080553728	0.6586966960637435

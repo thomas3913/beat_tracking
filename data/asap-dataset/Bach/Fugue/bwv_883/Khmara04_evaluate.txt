@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_883/Khmara04.wav
+F-measure	0.0024096385542168677	0.0
+Cemgil	0.0013111628465689589	1.3519926232583901e-06
+Cemgil Best Metric Level	0.0015132680180764719	5.815516380821198e-06
+Goto	0.0	0.0
+P-score	0.14542190305206462	0.5
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.5808823529411765
+Any Metric Level Total	0.0	0.9558823529411765
+Information gain	0.32008098226947773	0.598380081030966

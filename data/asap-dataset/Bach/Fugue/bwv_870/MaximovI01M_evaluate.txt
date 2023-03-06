@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_870/MaximovI01M.wav
+F-measure	0.9714285714285715	0.6495726495726496
+Cemgil	0.9488963585572899	0.6180079126863262
+Cemgil Best Metric Level	0.9488963585572899	0.9270118690294893
+Goto	1.0	0.0
+P-score	0.9625	0.5
+Correct Metric Level Continuous	0.95625	0.0
+Correct Metric Level Total	0.95625	0.0
+Any Metric Level Continuous	0.95625	1.0
+Any Metric Level Total	0.95625	1.0
+Information gain	0.6461353581220405	0.6604867000384973

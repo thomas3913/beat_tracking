@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_888/ZhaoK01M.wav
+F-measure	0.39375000000000004	0.0
+Cemgil	0.3879542234133599	3.4712560559913785e-08
+Cemgil Best Metric Level	0.4759520197641797	4.3670640704407666e-08
+Goto	0.0	0.0
+P-score	0.3247422680412371	0.3191489361702128
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.0
+Any Metric Level Total	0.0	0.0
+Information gain	0.44676021303404373	0.5809936772307132

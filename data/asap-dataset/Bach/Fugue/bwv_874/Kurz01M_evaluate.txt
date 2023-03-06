@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_874/Kurz01M.wav
+F-measure	0.386317907444668	0.0
+Cemgil	0.3775108655097972	1.3582475238709418e-86
+Cemgil Best Metric Level	0.6164837338035187	0.36518480763448546
+Goto	0.0	0.0
+P-score	0.245	0.0
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.352112676056338
+Any Metric Level Total	0.0	0.352112676056338
+Information gain	0.45118362474565343	0.5349894182024303

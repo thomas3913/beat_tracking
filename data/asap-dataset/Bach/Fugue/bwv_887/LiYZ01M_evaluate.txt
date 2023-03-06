@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_887/LiYZ01M.wav
+F-measure	0.4894736842105264	0.0056657223796034
+Cemgil	0.4790859633915331	0.0056633975804938974
+Cemgil Best Metric Level	0.4790859633915331	0.3256557007775439
+Goto	0.0	0.0
+P-score	0.32828870779976715	0.6650943396226415
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.0
+Any Metric Level Total	0.0	0.0
+Information gain	0.516151417033298	0.5966207614350012

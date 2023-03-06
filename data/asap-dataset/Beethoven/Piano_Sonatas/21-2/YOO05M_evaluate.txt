@@ -1,0 +1,11 @@
+Beethoven/Piano_Sonatas/21-2/YOO05M.wav
+F-measure	0.21727019498607247	0.1568627450980392
+Cemgil	0.1903627078591565	0.14462974296363204
+Cemgil Best Metric Level	0.2125931570002267	0.14462974296363204
+Goto	0.0	0.0
+P-score	0.4309210526315789	0.4
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.02666666666666667
+Any Metric Level Total	0.0	0.04
+Information gain	0.07703511705975825	0.154493884540843

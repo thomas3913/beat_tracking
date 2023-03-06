@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_860/YoungS01M.wav
+F-measure	0.3914081145584725	0.26027397260273966
+Cemgil	0.38613336499180917	0.24954041178943256
+Cemgil Best Metric Level	0.47559418579679746	0.24954041178943256
+Goto	0.0	0.0
+P-score	0.33201581027667987	0.27710843373493976
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.0
+Any Metric Level Total	0.0	0.0
+Information gain	0.47607466946703403	0.43033847994637103

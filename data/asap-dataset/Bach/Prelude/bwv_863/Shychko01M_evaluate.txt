@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_863/Shychko01M.wav
+F-measure	0.4886877828054298	0.0
+Cemgil	0.47151694115869686	8.648440096289438e-13
+Cemgil Best Metric Level	0.47151694115869686	0.29378049300956066
+Goto	0.0	0.0
+P-score	0.32335329341317365	0.6097560975609756
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.0
+Any Metric Level Total	0.0	0.0
+Information gain	0.5012417192178746	0.5294217130542052

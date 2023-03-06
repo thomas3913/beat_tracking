@@ -1,0 +1,11 @@
+Bach/Fugue/bwv_860/Ko04M.wav
+F-measure	0.45796064400715564	0.3942307692307692
+Cemgil	0.4467460602724221	0.3833276809295128
+Cemgil Best Metric Level	0.4467460602724221	0.48031420261047386
+Goto	0.0	0.0
+P-score	0.32653061224489793	0.328
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.0	0.0
+Any Metric Level Total	0.0	0.0
+Information gain	0.4729144039688269	0.5667635156610236

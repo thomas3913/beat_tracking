@@ -1,0 +1,11 @@
+Bach/Prelude/bwv_889/YangY02M.wav
+F-measure	0.6436170212765958	0.0
+Cemgil	0.6330830518387355	3.976895442962706e-29
+Cemgil Best Metric Level	0.9251614673437892	2.7417720279279486e-28
+Goto	0.0	0.0
+P-score	0.48412698412698413	0.5
+Correct Metric Level Continuous	0.0	0.0
+Correct Metric Level Total	0.0	0.0
+Any Metric Level Continuous	0.4880952380952381	0.0
+Any Metric Level Total	0.9365079365079365	0.0
+Information gain	0.5897558076086843	0.5715157282533769
