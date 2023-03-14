@@ -30,10 +30,10 @@ def read_note_sequence(midi_file):
     note_seq = np.array([[note.pitch, note.start, note.end - note.start, note.velocity] for note in notes])
     return note_seq
 
-class my_madmom(nn.Module):
+class MyMadmom(nn.Module):
 
     def __init__(self):
-        super(my_madmom,self).__init__()
+        super(MyMadmom,self).__init__()
         
         self.conv1 = torch.nn.Conv2d(in_channels=1, out_channels=20,kernel_size=(3,3),padding="valid")
         self.act1 = torch.nn.ELU()

@@ -1,14 +1,30 @@
+import pytorch_lightning as pl
+import torch
 import pandas as pd
 from pathlib import Path
-import os, sys
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-from beat_tracking.helper_functions import *
-from beat_tracking.helper_functions import get_note_sequence_and_annotations_from_midi
+import os
+from torch.utils.data import Dataset
+from beat_tracking.helper_functions import beat_list_to_array, get_note_sequence_and_annotations_from_midi
+
+# Experimental configurations during model training.
+learning_rate = 1e-3
+dropout = 0.15
+max_length = 500 # maximum length of input sequence
+
+batch_size = 1
+gpus = [0,1,2,3]
+# batch_size = 64 # for 2 GPUs
+# gpus = [0,1]
+
+num_workers = 4
 
 df2 = pd.read_csv("metadata.csv")
 
 def get_midi_filelist(dataset_list):
+    
+    for i,el in enumerate(dataset_list):
+        dataset_list[i]= el.upper()
     
     for elemnt in dataset_list:
         if elemnt not in ["ASAP","CPM","AMAPS"]:
@@ -66,13 +82,11 @@ def get_midi_filelist(dataset_list):
 
     return all_datasets, element_path_dict
 
-
-def get_pianoroll_dataset(filelist,path_dict):
+def get_split_lists(filelist,path_dict):
     train_list = list()
     validation_list = list()
     test_list = list()
     not_used = list()
-
     for element in filelist:
         try:
             split = df2.loc[df2["midi_perfm"] == path_dict[element]]["split"].iloc[0]
@@ -86,42 +100,89 @@ def get_pianoroll_dataset(filelist,path_dict):
             test_list.append(element)
         else:
             not_used.append(element)
+    return train_list, validation_list, test_list
 
-    class Audio_Dataset(Dataset):
-        def __init__(self,file_list,path_dict):
-            self.file_list = file_list
-            self.path_dict = path_dict
+class Audio_Dataset(Dataset):
+    def __init__(self,file_list,path_dict,mode):
+        self.file_list = file_list
+        self.path_dict = path_dict
+        self.mode = mode
 
-        def __getitem__(self, index):
+    def __getitem__(self, index):
+        if df2.loc[df2["midi_perfm"] == self.path_dict[self.file_list[index]]]["source"].iloc[0] == "ASAP":  
+            annotation_file = self.file_list[index][:-4]+"_annotations.txt"
+            beats = beat_list_to_array(annotation_file,"annotations","beats")
+            downbeats = beat_list_to_array(annotation_file,"annotations","downbeats")
+        else:
+            annot_from_midi = get_note_sequence_and_annotations_from_midi(self.file_list[index])
+            beats = annot_from_midi[1]['beats']
+            downbeats = annot_from_midi[1]['downbeats']
 
-            if df2.loc[df2["midi_perfm"] == self.path_dict[self.file_list[index]]]["source"].iloc[0] == "ASAP":  
-                annotation_file = self.file_list[index][:-4]+"_annotations.txt"
-                beats = beat_list_to_array(annotation_file,"annotations","beats")
-                downbeats = beat_list_to_array(annotation_file,"annotations","downbeats")
-            else:
-                annot_from_midi = get_note_sequence_and_annotations_from_midi(self.file_list[index])
-                beats = annot_from_midi[1]['beats']
-                downbeats = annot_from_midi[1]['downbeats']
-
+        if self.mode == "ismir":
             pr = np.load(self.file_list[index][:-4]+"_pianoroll.npy")
-
-            return pr, beats, downbeats, index, self.file_list[index]
-        
-        def __len__(self):
-            
-            return len(self.file_list)
-        
-    train_list_dataset = Audio_Dataset(file_list = train_list, path_dict=path_dict)
-    validation_list_dataset = Audio_Dataset(file_list = validation_list, path_dict=path_dict)
-    test_list_dataset = Audio_Dataset(file_list = test_list, path_dict=path_dict)
+            return self.file_list[index], beats, downbeats, index, pr
+        else:
+            return self.file_list[index], beats, downbeats, index
     
-    return train_list_dataset, validation_list_dataset, test_list_dataset
+    def __len__(self):
+        return len(self.file_list)
+        
 
+class MyDataModule(pl.LightningDataModule):
 
-def get_dataloader(dataset,split,shuffle=False):
-    split_dict = {"train":0,"val":1,"test":2}
-    loader = DataLoader(
-    dataset[split_dict[split]],
-    shuffle=shuffle,
-    batch_size=1)
-    return loader
+    def __init__(self, args):
+        super().__init__()
+        
+        # Parameters from input arguments
+        self.results_dir = args.results_dir
+        self.dataset = args.dataset
+        self.mode = args.mode
+        
+        if self.dataset == "all":
+            self.file_list, self.path_dict = get_midi_filelist(["AMAPS","ASAP","CPM"])
+        else:
+            self.file_list,self.path_dict = get_midi_filelist([self.dataset])
+
+        self.df2 = pd.read_csv("metadata.csv")
+
+    def _get_dataset(self, split):
+        train_list,validation_list,test_list = get_split_lists(self.file_list,self.path_dict)
+        split_dict = {"train":train_list,"valid":validation_list,"test":test_list}
+        dataset = Audio_Dataset(split_dict[split],self.path_dict,self.mode)
+        return dataset
+
+    def train_dataloader(self):
+        dataset = self._get_dataset(split='train')
+        sampler = torch.utils.data.sampler.RandomSampler(dataset)
+        dataloader = torch.utils.data.dataloader.DataLoader(
+            dataset,
+            batch_size=batch_size,
+            sampler=sampler,
+            num_workers=num_workers,
+            drop_last=True
+        )
+        return dataloader
+
+    def val_dataloader(self):
+        dataset = self._get_dataset(split='valid')
+        sampler = torch.utils.data.sampler.SequentialSampler(dataset)
+        dataloader = torch.utils.data.dataloader.DataLoader(
+            dataset,
+            batch_size=batch_size,
+            sampler=sampler,
+            num_workers=num_workers,
+            drop_last=True
+        )
+        return dataloader
+
+    def test_dataloader(self):
+        dataset = self._get_dataset(split='test')
+        sampler = torch.utils.data.sampler.SequentialSampler(dataset)
+        dataloader = torch.utils.data.dataloader.DataLoader(
+            dataset,
+            batch_size=1,
+            sampler=sampler,
+            num_workers=0,
+            drop_last=False
+        )
+        return dataloader
