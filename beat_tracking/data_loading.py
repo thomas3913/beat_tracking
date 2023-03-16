@@ -134,7 +134,6 @@ class MyDataModule(pl.LightningDataModule):
         super().__init__()
         
         # Parameters from input arguments
-        self.results_dir = args.results_dir
         self.dataset = args.dataset
         self.mode = args.mode
         

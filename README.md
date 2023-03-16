@@ -10,5 +10,3 @@ Values for dataset:
 
 Values for mode:
 "ismir" "pm2s"
-
-The parameter "validate_every" also defines how often checkpoints will be created.

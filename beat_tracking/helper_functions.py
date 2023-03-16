@@ -7,6 +7,7 @@ import pretty_midi as pm
 from pathlib import Path
 from functools import reduce, cmp_to_key
 from beat_tracking.pm2s_files.constants import tolerance
+import torch
 
 def beat_list_to_array(filename, data_type, beat_type):
     beat_list = []
@@ -37,11 +38,18 @@ def beat_list_to_array(filename, data_type, beat_type):
     return beat_array
 
 
+#def cnn_pad(data, pad_frames):
+#    """Pad the data by repeating the first and last frame N times."""
+#    pad_start = np.repeat(data[:, :1, :], pad_frames, axis=1)
+#    pad_stop = np.repeat(data[:, -1:, :], pad_frames, axis=1)
+#    return torch.concatenate((pad_start, data, pad_stop), axis=1)
+
+
 def cnn_pad(data, pad_frames):
     """Pad the data by repeating the first and last frame N times."""
-    pad_start = np.repeat(data[:, :1, :], pad_frames, axis=1)
-    pad_stop = np.repeat(data[:, -1:, :], pad_frames, axis=1)
-    return np.concatenate((pad_start, data, pad_stop), axis=1)
+    pad_start = torch.cat([data[:, :1, :].repeat(1, pad_frames, 1)], dim=1)
+    pad_stop = torch.cat([data[:, -1:, :].repeat(1, pad_frames, 1)], dim=1)
+    return torch.cat([pad_start, data, pad_stop], dim=1)
 
 
 def show_time(seconds):
