@@ -22,6 +22,7 @@ def train(args):
     checkpoints_dir = args.checkpoints_dir
     figures_dir = args.figures_dir
     dataset = args.dataset
+    epochs = args.epochs
     
     model = MyMadmomModule()
     
@@ -32,7 +33,7 @@ def train(args):
         logger=wandb_logger,
         log_every_n_steps=50,
         reload_dataloaders_every_n_epochs=True,
-        max_epochs=20,
+        max_epochs=int(epochs),
         #gpus=gpus,
         accelerator='gpu',
         devices=[0]
@@ -51,6 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--figures_dir', type=str, help='Where to store the plots.')
     parser.add_argument('--dataset', type=str, help='Which dataset?')
     parser.add_argument('--mode', type=str, help='ismir/pm2s')
+    parser.add_argument('--epochs', type=str, help='How many epochs?')
 
     args = parser.parse_args()
 
