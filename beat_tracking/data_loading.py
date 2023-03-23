@@ -120,7 +120,8 @@ class Audio_Dataset(Dataset):
 
         if self.mode == "ismir":
             pr = np.load(self.file_list[index][:-4]+"_pianoroll.npy")
-            return self.file_list[index], beats, downbeats, index, pr
+            pr_pm = np.load(self.file_list[index][:-4]+"_pianoroll_pm.npy")
+            return self.file_list[index], beats, downbeats, index, pr, pr_pm
         else:
             return self.file_list[index], beats, downbeats, index
     
