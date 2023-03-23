@@ -5,7 +5,7 @@ Example run commands:
 
 python evaluate_pm2s.py --results_dir "results" --dataset "asap" --mode "pm2s"
 
-python train_ISMIR.py --checkpoints_dir "models_ISMIR/checkpoints/" --figures_dir "models_ISMIR/figures/" --dataset "asap" --mode "ismir"
+python train_ISMIR.py --checkpoints_dir "models_ISMIR/checkpoints/" --figures_dir "models_ISMIR/figures/" --dataset "asap" --mode "ismir" --epochs 20
 
 Values for dataset:
 "asap" "amaps" "cpm" "all"
