@@ -19,8 +19,8 @@ warnings.filterwarnings("ignore")
 def train(args):
     data = MyDataModule(args)
     
-    checkpoints_dir = args.checkpoints_dir
-    figures_dir = args.figures_dir
+    #checkpoints_dir = args.checkpoints_dir
+    #figures_dir = args.figures_dir
     dataset = args.dataset
     epochs = args.epochs
     
@@ -48,11 +48,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train ISMIR.')
 
-    parser.add_argument('--checkpoints_dir', type=str, help='Where to store the results.')
-    parser.add_argument('--figures_dir', type=str, help='Where to store the plots.')
+    #parser.add_argument('--checkpoints_dir', type=str, help='Where to store the results.')
+    #parser.add_argument('--figures_dir', type=str, help='Where to store the plots.')
     parser.add_argument('--dataset', type=str, help='Which dataset?')
     parser.add_argument('--mode', type=str, help='ismir/pm2s')
     parser.add_argument('--epochs', type=str, help='How many epochs?')
+    parser.add_argument('--pianorolls', type=str, help='Partitura/pretty_midi')
 
     args = parser.parse_args()
 
