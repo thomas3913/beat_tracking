@@ -23,10 +23,14 @@ def train(args):
     #figures_dir = args.figures_dir
     dataset = args.dataset
     epochs = args.epochs
+    only_beats = args.only_beats
     
-    model = MyMadmomModule()
+    model = MyMadmomModule(args)
     
-    wandb_logger = WandbLogger(project="ISMIR-training-"+dataset)
+    if only_beats:
+        wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-only_beats")
+    else:
+        wandb_logger = WandbLogger(project="ISMIR-training-"+dataset)
     
     trainer = pl.Trainer(
         
@@ -54,6 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, help='ismir/pm2s')
     parser.add_argument('--epochs', type=str, help='How many epochs?')
     parser.add_argument('--pianorolls', type=str, help='Partitura/pretty_midi')
+    parser.add_argument('--only_beats',  type=bool, help='Only beats? (Ignore downbeats)')
 
     args = parser.parse_args()
 
