@@ -103,10 +103,11 @@ def get_split_lists(filelist,path_dict):
     return train_list, validation_list, test_list
 
 class Audio_Dataset(Dataset):
-    def __init__(self,file_list,path_dict,mode):
+    def __init__(self,file_list,path_dict,mode,pianorolls):
         self.file_list = file_list
         self.path_dict = path_dict
         self.mode = mode
+        self.pianorolls = pianorolls
 
     def __getitem__(self, index):
         if df2.loc[df2["midi_perfm"] == self.path_dict[self.file_list[index]]]["source"].iloc[0] == "ASAP":  
@@ -119,9 +120,11 @@ class Audio_Dataset(Dataset):
             downbeats = annot_from_midi[1]['downbeats']
 
         if self.mode == "ismir":
-            pr = np.load(self.file_list[index][:-4]+"_pianoroll.npy")
-            pr_pm = np.load(self.file_list[index][:-4]+"_pianoroll_pm.npy")
-            return self.file_list[index], beats, downbeats, index, pr, pr_pm
+            if self.pianorolls == "partitura":
+                pr = np.load(self.file_list[index][:-4]+"_pianoroll.npy")
+            else:
+                pr = np.load(self.file_list[index][:-4]+"_pianoroll_pm.npy")
+            return self.file_list[index], beats, downbeats, index, pr
         else:
             return self.file_list[index], beats, downbeats, index
     
@@ -137,6 +140,7 @@ class MyDataModule(pl.LightningDataModule):
         # Parameters from input arguments
         self.dataset = args.dataset
         self.mode = args.mode
+        self.pianorolls = args.pianorolls
         
         if self.dataset == "all":
             self.file_list, self.path_dict = get_midi_filelist(["AMAPS","ASAP","CPM"])
@@ -148,7 +152,7 @@ class MyDataModule(pl.LightningDataModule):
     def _get_dataset(self, split):
         train_list,validation_list,test_list = get_split_lists(self.file_list,self.path_dict)
         split_dict = {"train":train_list,"valid":validation_list,"test":test_list}
-        dataset = Audio_Dataset(split_dict[split],self.path_dict,self.mode)
+        dataset = Audio_Dataset(split_dict[split],self.path_dict,self.mode,self.pianorolls)
         return dataset
 
     def train_dataloader(self):
