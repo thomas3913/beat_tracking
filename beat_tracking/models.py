@@ -173,6 +173,7 @@ class MyMadmom(nn.Module):
         self.downbeats3 = torch.nn.Sigmoid()
         
     def forward(self,x):
+        
         x = self.conv1(x)
         x = self.act1(x)
         x = self.pool1(x)

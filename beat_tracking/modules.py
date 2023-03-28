@@ -27,6 +27,7 @@ class MyMadmomModule(pl.LightningModule):
         pass
     
     def training_step(self,batch,batch_idx):
+
         criterion = torch.nn.BCELoss()
         file,beats,downbeats,idx,pr = batch
         if pr.shape[1] > 100000:
@@ -34,6 +35,10 @@ class MyMadmomModule(pl.LightningModule):
 
         padded_array = cnn_pad(pr.float(),2)
         padded_array = torch.tensor(padded_array)
+
+        if padded_array.shape[2] > 88:
+            padded_array = padded_array[:,:,40:]
+
         outputs = self(padded_array)
         # Get beat activation function from the time annotations and widen beat targets for better accuracy:                
         beat_activation = madmom.utils.quantize_events(beats[0].cpu(), fps=100, length=len(pr[0]))
@@ -66,13 +71,18 @@ class MyMadmomModule(pl.LightningModule):
         return {'loss': loss, 'logs': logs}
     
     def validation_step(self,batch,batch_idx):
+
         criterion = torch.nn.BCELoss()
         file,beats,downbeats,idx,pr = batch
         if pr.shape[1] > 100000:
             return None
         padded_array = cnn_pad(pr.float(),2)
         padded_array = torch.tensor(padded_array)
-        outputs = self(padded_array)
+
+        if padded_array.shape[2] > 88:
+            padded_array = padded_array[:,:,40:]
+
+        outputs = self(padded_array)        
         
         # Get beat activation function from the time annotations and widen beat targets for better accuracy:                
         beat_activation = madmom.utils.quantize_events(beats[0].cpu(), fps=100, length=len(pr[0]))
