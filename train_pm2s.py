@@ -6,7 +6,7 @@ import warnings
 from beat_tracking.helper_functions import *
 from beat_tracking.data_loading import *
 from beat_tracking.models import MyMadmom
-from beat_tracking.modules import MyMadmomModule
+from beat_tracking.modules import MyMadmomModule, BeatModule
 
 import pytorch_lightning as pl
 
@@ -17,22 +17,20 @@ warnings.filterwarnings("ignore")
 # TRAINING LOOP
 
 def train(args):
-    data = MyDataModule(args)
+    data = Pm2sDataModule(args)
     
     #checkpoints_dir = args.checkpoints_dir
     #figures_dir = args.figures_dir
     dataset = args.dataset
     epochs = args.epochs
-    pianorolls = args.pianorolls
     only_beats = args.only_beats
-    stepsize = args.stepsize
     
-    model = MyMadmomModule(args)
+    model = BeatModule()
     
     if only_beats:
-        wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-"+pianorolls+"-step_size_"+str(stepsize)+"-only_beats")
+        wandb_logger = WandbLogger(project="PM2S-training-"+dataset+"-only_beats")
     else:
-        wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-"+pianorolls+"-step_size_"+str(stepsize))
+        wandb_logger = WandbLogger(project="PM2S-training-"+dataset)
     
     trainer = pl.Trainer(
         
@@ -50,16 +48,14 @@ def train(args):
         
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Train ISMIR.')
+    parser = argparse.ArgumentParser(description='Train PM2S.')
 
     #parser.add_argument('--checkpoints_dir', type=str, help='Where to store the results.')
     #parser.add_argument('--figures_dir', type=str, help='Where to store the plots.')
     parser.add_argument('--dataset', type=str, help='Which dataset?')
     parser.add_argument('--mode', type=str, help='ismir/pm2s')
     parser.add_argument('--epochs', type=str, help='How many epochs?')
-    parser.add_argument('--pianorolls', type=str, help='Partitura/pretty_midi')
     parser.add_argument('--only_beats',  type=bool, help='Only beats? (Ignore downbeats)')
-    parser.add_argument('--stepsize',  type=int, help='Adjust learning rate after ... epochs')
 
     args = parser.parse_args()
 
