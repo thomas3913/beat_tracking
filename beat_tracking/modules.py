@@ -24,6 +24,17 @@ def configure_optimizers_pm2s(module, lr=1e-3, step_size=50):
     )
     return [optimizer], [scheduler_lrdecay]
 
+def f_measure_framewise(y, y_hat):
+    acc = (y_hat == y).float().mean()
+    TP = torch.logical_and(y_hat==1, y==1).float().sum()
+    FP = torch.logical_and(y_hat==1, y==0).float().sum()
+    FN = torch.logical_and(y_hat==0, y==1).float().sum()
+
+    p = TP / (TP + FP + np.finfo(float).eps)
+    r = TP / (TP + FN + np.finfo(float).eps)
+    f = 2 * p * r / (p + r + np.finfo(float).eps)
+    return acc, p, r, f
+
 class MyMadmomModule(pl.LightningModule):
     def __init__(self,args):
         super().__init__()

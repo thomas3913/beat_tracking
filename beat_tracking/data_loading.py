@@ -5,8 +5,55 @@ from pathlib import Path
 import numpy as np
 import os
 from torch.utils.data import Dataset
-from beat_tracking.helper_functions import beat_list_to_array, get_note_sequence_and_annotations_from_midi
+from beat_tracking.helper_functions import beat_list_to_array, get_note_sequence_from_midi, get_annotations_from_annot_file, get_note_sequence_and_annotations_from_midi
 from collections import defaultdict
+import random
+
+# ========== data representation related constants ==========
+## quantisation resolution
+resolution = 0.01  # quantization resolution: 0.01s = 10ms
+tolerance = 0.05  # tolerance for beat alignment: 0.05s = 50ms
+ibiVocab = int(4 / resolution) + 1  # vocabulary size for inter-beat-interval: 4s = 4/0.01s + 1, index 0 is ignored during training
+
+# ========== post-processing constants ==========
+min_bpm = 40
+max_bpm = 240
+ticks_per_beat = 240
+
+# =========== time signature definitions ===========
+tsDenominators = [0, 2, 4, 8]  # 0 for others
+tsDeno2Index = {0: 0, 2: 1, 4: 2, 8: 3}
+tsIndex2Deno = {0: 0, 1: 2, 2: 4, 3: 8}
+tsDenoVocabSize = len(tsDenominators)
+
+tsNumerators = [0, 2, 3, 4, 6]  # 0 for others
+tsNume2Index = {0: 0, 2: 1, 3: 2, 4: 3, 6: 4}
+tsIndex2Nume = {0: 0, 1: 2, 2: 3, 3: 4, 4: 6}
+tsNumeVocabSize = len(tsNumerators)
+
+# =========== key signature definitions ==========
+# key in sharps in mido
+keySharps2Name = {0: 'C', 1: 'G', 2: 'D', 3: 'A', 4: 'E', 5: 'B', 6: 'F#',
+                  7: 'C#m', 8: 'G#m', 9: 'D#m', 10: 'Bbm', 11: 'Fm', 12: 'Cm',
+                  -11: 'Gm', -10: 'Dm', -9: 'Am', -8: 'Em', -7: 'Bm', -6: 'F#m',
+                  -5: 'Db', -4: 'Ab', -3: 'Eb', -2: 'Bb', -1: 'F'}
+keyName2Sharps = dict([(name, sharp) for sharp, name in keySharps2Name.items()])
+# key in numbers in pretty_midi
+keyNumber2Name = [
+    'C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B',
+    'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'Bbm', 'Bm',
+]
+keyName2Number = dict([(name, number) for number, name in enumerate(keyNumber2Name)])
+keySharps2Number = dict([(sharp, keyName2Number[keySharps2Name[sharp]]) for sharp in keySharps2Name.keys()])
+keyNumber2Sharps = dict([(number, keyName2Sharps[keyNumber2Name[number]]) for number in range(len(keyNumber2Name))])
+keyVocabSize = len(keySharps2Name) // 2  # ignore minor keys in key signature prediction!
+
+# =========== onset musical & note value definitions ===========
+# proposed model
+N_per_beat = 24  # 24 resolution per beat
+max_note_value = 4 * N_per_beat  # 4 beats
+omVocab = N_per_beat
+nvVocab = max_note_value
 
 # Experimental configurations during model training.
 learning_rate = 1e-3
@@ -198,135 +245,7 @@ class MyDataModule(pl.LightningDataModule):
 
 
 
-
-
 #PM2S
-
-class DataAugmentation():
-    def __init__(self, 
-        tempo_change_prob=1.0,
-        tempo_change_range=(0.8, 1.2),
-        pitch_shift_prob=1.0,
-        pitch_shift_range=(-12, 12),
-        extra_note_prob=0.5,
-        missing_note_prob=0.5):
-
-        if extra_note_prob + missing_note_prob > 1.:
-            extra_note_prob, missing_note_prob = extra_note_prob / (extra_note_prob + missing_note_prob), \
-                                                missing_note_prob / (extra_note_prob + missing_note_prob)
-            print('INFO: Reset extra_note_prob and missing_note_prob to', extra_note_prob, missing_note_prob)
-        
-        self.tempo_change_prob = tempo_change_prob
-        self.tempo_change_range = tempo_change_range
-        self.pitch_shift_prob = pitch_shift_prob
-        self.pitch_shift_range = pitch_shift_range
-        self.extra_note_prob = extra_note_prob
-        self.missing_note_prob = missing_note_prob
-
-    def __call__(self, note_sequence, annotations):
-        # tempo change
-        if random.random() < self.tempo_change_prob:
-            note_sequence, annotations = self.tempo_change(note_sequence, annotations)
-
-        # pitch shift
-        if random.random() < self.pitch_shift_prob:
-            note_sequence, annotations = self.pitch_shift(note_sequence, annotations)
-
-        # extra note or missing note
-        extra_or_missing = random.random()
-        if extra_or_missing < self.extra_note_prob:
-            note_sequence, annotations = self.extra_note(note_sequence, annotations)
-        elif extra_or_missing > 1. - self.missing_note_prob:
-            note_sequence, annotations = self.missing_note(note_sequence, annotations)
-
-        return note_sequence, annotations
-
-    def tempo_change(self, note_sequence, annotations):
-        tempo_change_ratio = random.uniform(*self.tempo_change_range)
-        note_sequence[:,1:3] *= 1 / tempo_change_ratio
-        annotations['beats'] *= 1 / tempo_change_ratio
-        annotations['downbeats'] *= 1 / tempo_change_ratio
-        annotations['time_signatures'][:,0] *= 1 / tempo_change_ratio
-        annotations['key_signatures'][:,0] *= 1 / tempo_change_ratio
-        return note_sequence, annotations
-
-    def pitch_shift(self, note_sequence, annotations):
-        shift = round(random.uniform(*self.pitch_shift_range))
-        note_sequence[:,0] += shift
-
-        for i in range(len(annotations['key_signatures'])):
-            annotations['key_signatures'][i,1] += shift
-            annotations['key_signatures'][i,1] %= 24
-            
-        return note_sequence, annotations
-
-    def extra_note(self, note_sequence, annotations):
-        # duplicate
-        note_sequence_new = np.zeros([len(note_sequence) * 2, 4])
-        note_sequence_new[::2,:] = np.copy(note_sequence)  # original notes
-        note_sequence_new[1::2,:] = np.copy(note_sequence)  # extra notes
-
-        if annotations['onsets_musical'] is not None:
-            onsets_musical_new = np.zeros(len(note_sequence) * 2)
-            onsets_musical_new[::2] = np.copy(annotations['onsets_musical'])
-            onsets_musical_new[1::2] = np.copy(annotations['onsets_musical'])
-
-        if annotations['note_value'] is not None:
-            note_value_new = np.zeros(len(note_sequence) * 2)
-            note_value_new[::2] = np.copy(annotations['note_value'])
-            note_value_new[1::2] = np.copy(annotations['note_value'])
-
-        if annotations['hands'] is not None:
-            hands_new = np.zeros(len(note_sequence) * 2)
-            hands_new[::2] = np.copy(annotations['hands'])
-            hands_new[1::2] = np.copy(annotations['hands'])
-            hands_mask = np.ones(len(note_sequence) * 2)  # mask out hand for extra notes during training
-            hands_mask[1::2] = 0
-
-        # pitch shift for extra notes (+-12)
-        shift = ((np.round(np.random.random(len(note_sequence_new))) - 0.5) * 24).astype(int)
-        shift[::2] = 0
-        note_sequence_new[:,0] += shift
-        note_sequence_new[:,0][note_sequence_new[:,0] < 0] += 12
-        note_sequence_new[:,0][note_sequence_new[:,0] > 127] -= 12
-
-        # keep a random ratio of extra notes
-        ratio = random.random() * 0.3
-        probs = np.random.random(len(note_sequence_new))
-        probs[::2] = 0.
-        remaining = probs < ratio
-        note_sequence_new = note_sequence_new[remaining]
-        if annotations['onsets_musical'] is not None:
-            annotations['onsets_musical'] = onsets_musical_new[remaining]
-        if annotations['note_value'] is not None:
-            annotations['note_value'] = note_value_new[remaining]
-        if annotations['hands'] is not None:
-            annotations['hands'] = hands_new[remaining]
-            annotations['hands_mask'] = hands_mask[remaining]
-
-        return note_sequence_new, annotations
-
-    def missing_note(self, note_sequence, annotations):
-        # find successing concurrent notes
-        candidates = np.diff(note_sequence[:,1]) < tolerance
-
-        # randomly select a ratio of candidates to be removed
-        ratio = random.random()
-        candidates_probs = candidates * np.random.random(len(candidates))
-        remaining = np.concatenate([np.array([True]), candidates_probs < (1 - ratio)])
-
-        # remove selected candidates
-        note_sequence = note_sequence[remaining]
-        if annotations['onsets_musical'] is not None:
-            annotations['onsets_musical'] = annotations['onsets_musical'][remaining]
-        if annotations['note_value'] is not None:
-            annotations['note_value'] = annotations['note_value'][remaining]
-        if annotations['hands'] is not None:
-            annotations['hands'] = annotations['hands'][remaining]
-
-        return note_sequence, annotations
-
-
 
 class BaseDataset(torch.utils.data.Dataset):
 
@@ -352,7 +271,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.pieces = list(self.piece2row.keys())
 
         # Initialise data augmentation
-        self.dataaug = DataAugmentation()
+        #self.dataaug = DataAugmentation()
 
     def __len__(self):
         if self.split == 'train' or self.split == 'all':
@@ -384,11 +303,26 @@ class BaseDataset(torch.utils.data.Dataset):
         # Get feature
         #note_sequence, annotations = pickle.load(open(str(Path(self.feature_folder, row['feature_file'])), 'rb'))
         path = str(Path(row['feature_file'])).replace("\\","/")
-        note_sequence, annotations = pickle.load(open(path, 'rb'))
+
+        all_datasets_list, all_datasets_path_dict = get_midi_filelist(["ASAP","AMAPS","CPM"])
+
+        all_datasets_path_dict_inv = {v: k for k, v in all_datasets_path_dict.items()}
+
+        if row['source'] == 'ASAP':
+            # get note sequence
+            note_sequence = get_note_sequence_from_midi(all_datasets_path_dict_inv[row['midi_perfm']])
+            # get annotations dict (beats, downbeats, key signatures, time signatures)
+            annotations = get_annotations_from_annot_file(all_datasets_path_dict_inv[row['midi_perfm']][:-4]+"_annotations.txt")
+        else:
+            # get note sequence and annotations dict
+            # (beats, downbeats, key signatures, time signatures, musical onset times, note value in beats, hand parts)
+            note_sequence, annotations = get_note_sequence_and_annotations_from_midi(all_datasets_path_dict_inv[row['midi_perfm']])
+
+        #note_sequence, annotations = pickle.load(open(path, 'rb'))
 
         # Data augmentation
-        if self.split == 'train' or self.split == 'all':
-            note_sequence, annotations = self.dataaug(note_sequence, annotations)
+        #if self.split == 'train' or self.split == 'all':
+        #    note_sequence, annotations = self.dataaug(note_sequence, annotations)
 
         # Randomly sample a segment that is at most max_length long
         if self.split == 'train' or self.split == 'all':

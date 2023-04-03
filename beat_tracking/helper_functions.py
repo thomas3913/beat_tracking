@@ -8,6 +8,46 @@ from pathlib import Path
 from functools import reduce, cmp_to_key
 from beat_tracking.pm2s_files.constants import tolerance
 import torch
+import pandas as pd
+
+# ========== data representation related constants ==========
+## quantisation resolution
+resolution = 0.01  # quantization resolution: 0.01s = 10ms
+tolerance = 0.05  # tolerance for beat alignment: 0.05s = 50ms
+ibiVocab = int(4 / resolution) + 1  # vocabulary size for inter-beat-interval: 4s = 4/0.01s + 1, index 0 is ignored during training
+
+# ========== post-processing constants ==========
+min_bpm = 40
+max_bpm = 240
+ticks_per_beat = 240
+
+# =========== time signature definitions ===========
+tsDenominators = [0, 2, 4, 8]  # 0 for others
+tsDeno2Index = {0: 0, 2: 1, 4: 2, 8: 3}
+tsIndex2Deno = {0: 0, 1: 2, 2: 4, 3: 8}
+tsDenoVocabSize = len(tsDenominators)
+
+tsNumerators = [0, 2, 3, 4, 6]  # 0 for others
+tsNume2Index = {0: 0, 2: 1, 3: 2, 4: 3, 6: 4}
+tsIndex2Nume = {0: 0, 1: 2, 2: 3, 3: 4, 4: 6}
+tsNumeVocabSize = len(tsNumerators)
+
+# =========== key signature definitions ==========
+# key in sharps in mido
+keySharps2Name = {0: 'C', 1: 'G', 2: 'D', 3: 'A', 4: 'E', 5: 'B', 6: 'F#',
+                  7: 'C#m', 8: 'G#m', 9: 'D#m', 10: 'Bbm', 11: 'Fm', 12: 'Cm',
+                  -11: 'Gm', -10: 'Dm', -9: 'Am', -8: 'Em', -7: 'Bm', -6: 'F#m',
+                  -5: 'Db', -4: 'Ab', -3: 'Eb', -2: 'Bb', -1: 'F'}
+keyName2Sharps = dict([(name, sharp) for sharp, name in keySharps2Name.items()])
+# key in numbers in pretty_midi
+keyNumber2Name = [
+    'C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B',
+    'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'Bbm', 'Bm',
+]
+keyName2Number = dict([(name, number) for number, name in enumerate(keyNumber2Name)])
+keySharps2Number = dict([(sharp, keyName2Number[keySharps2Name[sharp]]) for sharp in keySharps2Name.keys()])
+keyNumber2Sharps = dict([(number, keyName2Sharps[keyNumber2Name[number]]) for number in range(len(keyNumber2Name))])
+keyVocabSize = len(keySharps2Name) // 2  # ignore minor keys in key signature prediction!
 
 def beat_list_to_array(filename, data_type, beat_type):
     beat_list = []
@@ -125,6 +165,60 @@ def compare_note_order(note1, note2):
             return 1
     else:
         return 1
+    
+
+def get_note_sequence_from_midi(midi_file):
+    """
+    Get note sequence from midi file.
+    Note sequence is in a list of (pitch, onset, duration, velocity) tuples, in np.array.
+    """
+    midi_data = pm.PrettyMIDI(str(Path(midi_file)))
+    note_sequence = reduce(lambda x, y: x+y, [inst.notes for inst in midi_data.instruments])
+    note_sequence = sorted(note_sequence, key=cmp_to_key(compare_note_order))
+    # conver to numpy array
+    note_sequence = np.array([(note.pitch, note.start, note.end-note.start, note.velocity) \
+                                    for note in note_sequence])
+    return note_sequence
+
+def get_annotations_from_annot_file(annot_file):
+    """
+    Get annotations from annotation file in ASAP dataset.
+    annotatioins in a dict of {
+        beats: list of beat times,
+        downbeats: list of downbeat times,
+        time_signatures: list of (time, numerator, denominator) tuples,
+        key_signatures: list of (time, key_number) tuples
+    }, all in np.array.
+    """
+    annot_data = pd.read_csv(str(Path(annot_file)), header=None, sep='\t')
+
+    beats, downbeats, key_signatures, time_signatures = [], [], [], []
+    for i, row in annot_data.iterrows():
+        a = row[2].split(',')
+        # beats
+        beats.append(row[0])
+        # downbeats
+        if a[0] == 'db':
+            downbeats.append(row[0])
+        # time_signatures
+        if len(a) >= 2 and a[1] != '':
+            numerator, denominator = a[1].split('/')
+            time_signatures.append((row[0], int(numerator), int(denominator)))
+        # key_signatures
+        if len(a) == 3 and a[2] != '':
+            key_signatures.append((row[0], keySharps2Number[int(a[2])]))
+
+    # save as annotation dict
+    annotations = {
+        'beats': np.array(beats),
+        'downbeats': np.array(downbeats),
+        'time_signatures': np.array(time_signatures),
+        'key_signatures': np.array(key_signatures),
+        'onsets_musical': None,
+        'note_value': None,
+        'hands': None,
+    }
+    return annotations
             
             
 def get_note_sequence_and_annotations_from_midi(midi_file):
