@@ -84,60 +84,31 @@ def get_midi_filelist(dataset_list):
     CPM = "data/Piano-MIDI/midis"
     ACPAS = "data/ACPAS"
 
-    df = pd.read_csv(Path(asap_dataset,"metadata.csv"))
+    #df = pd.read_csv(Path(asap_dataset,"metadata.csv"))
 
-    all_datasets = list()
+    midi_filelist = list()
     
-    ASAP = list()
-    for element in df["midi_performance"]:
-        #midi_performances.append(str(Path(PROJECT_PATH,element)))
-        ASAP.append(element)
+    for element in df2["midi_perfm"]:
+        if "AMAPS" in dataset_list:
+            if df2.loc[df2["midi_perfm"]==element]["source"].iloc[0] == "MAPS":
+                midi_filelist.append(element)
         if "ASAP" in dataset_list:
-            all_datasets.append(os.path.join(asap_dataset,element))
-    
-    AMAPS_files = list()
-    for (dirpath, dirnames, filenames) in os.walk(AMAPS):
-        AMAPS_files += [os.path.join(dirpath, file) for file in filenames if file[-3:] == "mid"]
-    AMAPS_files = sorted(AMAPS_files)
-    if "AMAPS" in dataset_list:
-        all_datasets += [AMAPS_files[i] for i in range(len(AMAPS_files))]
+            if df2.loc[df2["midi_perfm"]==element]["source"].iloc[0] == "ASAP":
+                midi_filelist.append(element)
+        if "CPM" in dataset_list:
+            if df2.loc[df2["midi_perfm"]==element]["source"].iloc[0] == "CPM":
+                midi_filelist.append(element)
 
-    PIANO_MIDI_files = list()
-    for (dirpath, dirnames, filenames) in os.walk(CPM):
-        PIANO_MIDI_files += [os.path.join(dirpath, file) for file in filenames if file[-3:] in ["mid","MID"]]
-    PIANO_MIDI_files = sorted(PIANO_MIDI_files)
-    if "CPM" in dataset_list:
-        all_datasets += [PIANO_MIDI_files[i] for i in range(len(PIANO_MIDI_files))]
+    return midi_filelist
 
-
-    element_path_dict = {}
-    for _ in range(2):
-        error_list = list()
-        for i, element in enumerate(all_datasets):
-            if element.split("/")[1] == "A-MAPS_1.2":
-                element_path = "../../MIDI-Datasets"+element[4:]
-            elif element.split("/")[1] == "Piano-MIDI":
-                element_path = "../../MIDI-Datasets"+element[4:]
-            elif element.split("/")[1] == "asap-dataset":
-                element_path = "../.."+element[4:]
-            element_path_dict[element] = element_path
-            try:
-                split = df2.loc[df2["midi_perfm"] == element_path]["split"].iloc[0]
-            except Exception as e:
-                error_list.append(element)
-                all_datasets.remove(element)
-                del element_path_dict[element]
-
-    return all_datasets, element_path_dict
-
-def get_split_lists(filelist,path_dict):
+def get_split_lists(filelist):
     train_list = list()
     validation_list = list()
     test_list = list()
     not_used = list()
     for element in filelist:
         try:
-            split = df2.loc[df2["midi_perfm"] == path_dict[element]]["split"].iloc[0]
+            split = df2.loc[df2["midi_perfm"] == element]["split"].iloc[0]
         except:
             continue
         if split == "train":
@@ -151,14 +122,13 @@ def get_split_lists(filelist,path_dict):
     return train_list, validation_list, test_list
 
 class Audio_Dataset(Dataset):
-    def __init__(self,file_list,path_dict,mode,pianorolls=None):
+    def __init__(self,file_list,mode,pianorolls=None):
         self.file_list = file_list
-        self.path_dict = path_dict
         self.mode = mode
         self.pianorolls = pianorolls
 
     def __getitem__(self, index):
-        if df2.loc[df2["midi_perfm"] == self.path_dict[self.file_list[index]]]["source"].iloc[0] == "ASAP":  
+        if df2.loc[df2["midi_perfm"] == self.file_list[index]]["source"].iloc[0] == "ASAP":  
             annotation_file = self.file_list[index][:-4]+"_annotations.txt"
             beats = beat_list_to_array(annotation_file,"annotations","beats")
             downbeats = beat_list_to_array(annotation_file,"annotations","downbeats")
@@ -192,19 +162,19 @@ class MyDataModule(pl.LightningDataModule):
             self.pianorolls = args.pianorolls
         
         if self.dataset == "all":
-            self.file_list, self.path_dict = get_midi_filelist(["AMAPS","ASAP","CPM"])
+            self.file_list = get_midi_filelist(["AMAPS","ASAP","CPM"])
         else:
-            self.file_list,self.path_dict = get_midi_filelist([self.dataset])
+            self.file_list = get_midi_filelist([self.dataset])
 
         self.df2 = pd.read_csv("metadata.csv")
 
     def _get_dataset(self, split):
-        train_list,validation_list,test_list = get_split_lists(self.file_list,self.path_dict)
+        train_list,validation_list,test_list = get_split_lists(self.file_list)
         split_dict = {"train":train_list,"valid":validation_list,"test":test_list}
         if self.mode == "ismir":
-            dataset = Audio_Dataset(split_dict[split],self.path_dict,self.mode,self.pianorolls)
+            dataset = Audio_Dataset(split_dict[split],self.mode,self.pianorolls)
         else:
-            dataset = Audio_Dataset(split_dict[split],self.path_dict,self.mode)
+            dataset = Audio_Dataset(split_dict[split],self.mode)
         return dataset
 
     def train_dataloader(self):
@@ -304,19 +274,15 @@ class BaseDataset(torch.utils.data.Dataset):
         #note_sequence, annotations = pickle.load(open(str(Path(self.feature_folder, row['feature_file'])), 'rb'))
         path = str(Path(row['feature_file'])).replace("\\","/")
 
-        all_datasets_list, all_datasets_path_dict = get_midi_filelist(["ASAP","AMAPS","CPM"])
-
-        all_datasets_path_dict_inv = {v: k for k, v in all_datasets_path_dict.items()}
-
         if row['source'] == 'ASAP':
             # get note sequence
-            note_sequence = get_note_sequence_from_midi(all_datasets_path_dict_inv[row['midi_perfm']])
+            note_sequence = get_note_sequence_from_midi(row['midi_perfm'])
             # get annotations dict (beats, downbeats, key signatures, time signatures)
-            annotations = get_annotations_from_annot_file(all_datasets_path_dict_inv[row['midi_perfm']][:-4]+"_annotations.txt")
+            annotations = get_annotations_from_annot_file(row['midi_perfm'][:-4]+"_annotations.txt")
         else:
             # get note sequence and annotations dict
             # (beats, downbeats, key signatures, time signatures, musical onset times, note value in beats, hand parts)
-            note_sequence, annotations = get_note_sequence_and_annotations_from_midi(all_datasets_path_dict_inv[row['midi_perfm']])
+            note_sequence, annotations = get_note_sequence_and_annotations_from_midi(row['midi_perfm'])
 
         #note_sequence, annotations = pickle.load(open(path, 'rb'))
 
