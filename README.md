@@ -5,6 +5,8 @@ Example run commands:
 
 python evaluate_pm2s.py --results_dir "results" --dataset "asap" --mode "pm2s"
 
+python evaluate_ISMIR.py --results_dir "results" --dataset "all" --mode "ismir"
+
 python train_pm2s.py --dataset "all" --mode "pm2s" --epochs 10 --only_beats True
 
 python train_ISMIR.py --dataset "asap" --mode "ismir" --epochs 20 --pianorolls "pretty_midi" --only_beats True --stepsize 20
