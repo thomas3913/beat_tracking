@@ -5,6 +5,7 @@ import torch
 import pytorch_lightning as pl
 
 from beat_tracking.models import MyMadmom, RNNJointBeatModel
+from beat_tracking.postprocessing import RNNJointBeatProcessor
 from beat_tracking.helper_functions import *
 
 import madmom
@@ -23,6 +24,22 @@ def configure_optimizers_pm2s(module, lr=1e-3, step_size=50):
         gamma=0.1
     )
     return [optimizer], [scheduler_lrdecay]
+
+def configure_callbacks(monitor='f_score_b', mode='max'):
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(
+        monitor=monitor,
+        mode=mode,
+        save_top_k=3,
+        filename='{epoch}-{val_loss:.2f}-{val_f1:.2f}',
+        save_last=True,
+    )
+    earlystop_callback = pl.callbacks.EarlyStopping(
+        monitor=monitor,
+        patience=200,
+        mode=mode,
+    )
+    return [checkpoint_callback, earlystop_callback]
+
 
 def f_measure_framewise(y, y_hat):
     acc = (y_hat == y).float().mean()
@@ -51,7 +68,7 @@ class MyMadmomModule(pl.LightningModule):
         return [optimizer],[scheduler]
     
     def configure_callbacks(self):
-        pass
+        return configure_callbacks(monitor='f_score_b')
     
     def training_step(self,batch,batch_idx):
 
@@ -123,6 +140,10 @@ class MyMadmomModule(pl.LightningModule):
         
         loss_b = criterion(outputs[0][:,0].float(),beat_activation.float())
         loss_db = criterion(outputs[1][:,0].float(),beat_activation_db.float())
+
+        #New evaluation score: F-measure framewise
+        acc_b, prec_b, rec_b, f_b = f_measure_framewise(beat_activation.detach().cpu().float(), np.round(outputs[0][:,0].detach().cpu().float()))
+        acc_db, prec_db, rec_db, f_db = f_measure_framewise(beat_activation_db.detach().cpu().float(), np.round(outputs[1][:,0].detach().cpu().float()))
         
         #Calculate F-Score (Beats):
         try:
@@ -157,17 +178,72 @@ class MyMadmomModule(pl.LightningModule):
                 'val_loss_db': loss_db,
                 'f_score_b': f_score_val,
                 'f_score_db': fscore_db_val,
+                'framewise_f_b':f_b,
+                'framewise_f_db':f_db,
             }
         else:
             loss = loss_b
             logs = {
                 'val_loss': loss,
                 'f_score_b': f_score_val,
+                'framewise_f_b':f_b,
             }
 
         self.log_dict(logs, prog_bar=True)
         
         return {'val_loss': loss, 'logs': logs}
+    
+    def test_step(self,batch,batch_idx):
+
+        file,beats,downbeats,idx,pr = batch
+        if pr.shape[1] > 100000:
+            return None
+        padded_array = cnn_pad(pr.float(),2)
+        padded_array = torch.tensor(padded_array)
+
+        if padded_array.shape[2] > 88:
+            padded_array = padded_array[:,:,21:109]
+
+        outputs = self(padded_array)        
+
+        #Calculate F-Score (Beats):
+        try:
+            proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100)
+            beat_times = proc(outputs[0][:,0].detach().cpu().numpy())
+            evaluate = madmom.evaluation.beats.BeatEvaluation(beat_times, beats[0].cpu())
+            f_score_test = evaluate.fmeasure
+        except Exception as e:
+            print("Test sample cannot be processed correctly. Error in beat process:",e)
+            f_score_test = 0
+            
+        #Calculate F-Score (Downbeats):
+        if self.only_beats == False:
+
+            combined_0 = outputs[0].detach().cpu().numpy().squeeze()
+            combined_1 = outputs[1].detach().cpu().numpy().squeeze()
+            combined_act = np.vstack((np.maximum(combined_0 - combined_1, 0), combined_1)).T
+
+            try:
+                proc_db = madmom.features.downbeats.DBNDownBeatTrackingProcessor(beats_per_bar=[2,3,4],fps=100)
+                beat_times_db = proc_db(combined_act)
+                evaluate_db = madmom.evaluation.beats.BeatEvaluation(beat_times_db, downbeats[0].cpu(), downbeats=True)
+                fscore_db_test = evaluate_db.fmeasure
+            except Exception as e:
+                print("Test sample cannot be processed correctly. Error in downbeat process:",e)
+                fscore_db_test = 0
+            
+            logs = {
+                'f_score_b_test': f_score_test,
+                'f_score_db_test': fscore_db_test,
+            }
+        else:
+            logs = {
+                'f_score_b_test': f_score_test,
+            }
+
+        self.log_dict(logs, prog_bar=True)
+        
+        return {'test_loss': 0, 'logs': logs}
 
 
 class BeatModule(pl.LightningModule):
@@ -187,7 +263,7 @@ class BeatModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # Data
-        x, y_b, y_db, y_ibi, length = batch
+        x, y_b, y_db, y_ibi, length, _, _ = batch
         x = x.float()
         y_b = y_b.float()
         y_db = y_db.float()
@@ -224,7 +300,7 @@ class BeatModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         # Data
-        x, y_b, y_db, y_ibi, length = batch
+        x, y_b, y_db, y_ibi, length, _, _ = batch
         x = x.float()
         y_b = y_b.float()
         y_db = y_db.float()
@@ -265,6 +341,7 @@ class BeatModule(pl.LightningModule):
             y_ibi_i = y_ibi_i[y_ibi_i != 0]
 
             # get accuracy
+
             acc_b, prec_b, rec_b, f_b = f_measure_framewise(y_b_i, y_b_hat_i)
             acc_db, prec_db, rec_db, f_db = f_measure_framewise(y_db_i, y_db_hat_i)
             
@@ -291,19 +368,107 @@ class BeatModule(pl.LightningModule):
         # Logging
         logs = {
             'val_loss': loss,
-            'val_loss_b': loss_b,
-            'val_loss_db': loss_db,
-            'val_loss_ibi': loss_ibi,
+            #'val_loss_b': loss_b,
+            #'val_loss_db': loss_db,
+            #'val_loss_ibi': loss_ibi,
             'val_acc_b': accs_b,
             'val_prec_b': precs_b,
-            'val_rec_b': recs_b,
+            #'val_rec_b': recs_b,
             'val_f_b': fs_b,
             'val_acc_db': accs_db,
             'val_prec_db': precs_db,
-            'val_rec_db': recs_db,
+            #'val_rec_db': recs_db,
             'val_f_db': fs_db,
-            'val_f1': fs_b,  # this will be used as the monitor for logging and checkpointing callbacks
+            #'val_f1': fs_b,  # this will be used as the monitor for logging and checkpointing callbacks
         }
         self.log_dict(logs, prog_bar=True)
 
         return {'val_loss': loss, 'logs': logs}
+    
+    def test_step(self,batch,batch_idx):
+        # Data
+        x, y_b, y_db, y_ibi, length, y_beats, y_downbeats = batch
+        x = x.float()
+        y_b = y_b.float()
+        y_db = y_db.float()
+        y_ibi = y_ibi.long()
+        length = length.long()
+
+        # Forward pass
+        y_b_hat, y_db_hat, y_ibi_hat = self(x)
+
+        # Mask out the padding part
+        for i in range(y_b_hat.shape[0]):
+            y_b_hat[i, length[i]:] = 0
+            y_db_hat[i, length[i]:] = 0
+            y_ibi_hat[i, :, length[i]:] = 0
+
+        # Metrics
+        accs_b, precs_b, recs_b, fs_b = 0, 0, 0, 0
+        accs_db, precs_db, recs_db, fs_db = 0, 0, 0, 0
+
+        for i in range(x.shape[0]):
+            # get sample from batch
+            y_b_hat_i = torch.round(y_b_hat[i, :length[i]])
+            y_db_hat_i = torch.round(y_db_hat[i, :length[i]])
+            y_ibi_hat_i = y_ibi_hat[i, :, :length[i]].topk(1, dim=0)[1][0]
+            
+            y_b_i = y_b[i, :length[i]]
+            y_db_i = y_db[i, :length[i]]
+            y_ibi_i = y_ibi[i, :length[i]]
+
+            # filter out ignore indexes
+            y_ibi_hat_i = y_ibi_hat_i[y_ibi_i != 0]
+            y_ibi_i = y_ibi_i[y_ibi_i != 0]
+
+            # get accuracy
+
+            acc_b, prec_b, rec_b, f_b = f_measure_framewise(y_b_i, y_b_hat_i)
+            acc_db, prec_db, rec_db, f_db = f_measure_framewise(y_db_i, y_db_hat_i)
+            
+            accs_b += acc_b
+            precs_b += prec_b
+            recs_b += rec_b
+            fs_b += f_b
+
+            accs_db += acc_db
+            precs_db += prec_db
+            recs_db += rec_db
+            fs_db += f_db
+
+        accs_b /= x.shape[0]
+        precs_b /= x.shape[0]
+        recs_b /= x.shape[0]
+        fs_b /= x.shape[0]
+
+        accs_db /= x.shape[0]
+        precs_db /= x.shape[0]
+        recs_db /= x.shape[0]
+        fs_db /= x.shape[0]
+
+        #Post processing with RNNJointBeatProcessor:
+        post_processor = RNNJointBeatProcessor()
+        try:
+            beats = post_processor.process(x,y_b_hat,y_db_hat)
+            evaluate = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats)
+            f_b_post = evaluate.fmeasure
+        except Exception as e:
+            print(e)
+
+
+        # Logging
+        logs = {
+            'test_acc_b': accs_b,
+            'test_prec_b': precs_b,
+            #'test_rec_b': recs_b,
+            'test_f_b': fs_b,
+            'test_acc_db': accs_db,
+            'test_prec_db': precs_db,
+            #'test_rec_db': recs_db,
+            'test_f_db': fs_db,
+            'f_b_postprocessing':f_b_post
+            #'test_f1': fs_b,  # this will be used as the monitor for logging and checkpointing callbacks
+        }
+        self.log_dict(logs, prog_bar=True)
+
+        return {'test_loss': 0, 'logs': logs}

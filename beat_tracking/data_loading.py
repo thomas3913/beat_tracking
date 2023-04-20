@@ -122,9 +122,8 @@ def get_split_lists(filelist):
     return train_list, validation_list, test_list
 
 class Audio_Dataset(Dataset):
-    def __init__(self,file_list,mode,pianorolls=None):
+    def __init__(self,file_list,pianorolls=None):
         self.file_list = file_list
-        self.mode = mode
         self.pianorolls = pianorolls
 
     def __getitem__(self, index):
@@ -137,14 +136,11 @@ class Audio_Dataset(Dataset):
             beats = annot_from_midi[1]['beats']
             downbeats = annot_from_midi[1]['downbeats']
 
-        if self.mode == "ismir":
-            if self.pianorolls == "partitura":
-                pr = np.load(self.file_list[index][:-4]+"_pianoroll.npy")
-            else:
-                pr = np.load(self.file_list[index][:-4]+"_pianoroll_pm.npy")
-            return self.file_list[index], beats, downbeats, index, pr
+        if self.pianorolls == "partitura":
+            pr = np.load(self.file_list[index][:-4]+"_pianoroll.npy")
         else:
-            return self.file_list[index], beats, downbeats, index
+            pr = np.load(self.file_list[index][:-4]+"_pianoroll_pm.npy")
+        return self.file_list[index], beats, downbeats, index, pr
     
     def __len__(self):
         return len(self.file_list)
@@ -157,9 +153,7 @@ class MyDataModule(pl.LightningDataModule):
         
         # Parameters from input arguments
         self.dataset = args.dataset
-        self.mode = args.mode
-        if self.mode == "ismir":
-            self.pianorolls = args.pianorolls
+        self.pianorolls = args.pianorolls
         
         if self.dataset == "all":
             self.file_list = get_midi_filelist(["AMAPS","ASAP","CPM"])
@@ -171,10 +165,7 @@ class MyDataModule(pl.LightningDataModule):
     def _get_dataset(self, split):
         train_list,validation_list,test_list = get_split_lists(self.file_list)
         split_dict = {"train":train_list,"valid":validation_list,"test":test_list}
-        if self.mode == "ismir":
-            dataset = Audio_Dataset(split_dict[split],self.mode,self.pianorolls)
-        else:
-            dataset = Audio_Dataset(split_dict[split],self.mode)
+        dataset = Audio_Dataset(split_dict[split],self.pianorolls)
         return dataset
 
     def train_dataloader(self):
@@ -208,7 +199,7 @@ class MyDataModule(pl.LightningDataModule):
             dataset,
             batch_size=1,
             sampler=sampler,
-            num_workers=0,
+            num_workers=num_workers,
             drop_last=False
         )
         return dataloader
@@ -373,6 +364,8 @@ class BeatDataset(BaseDataset):
             downbeat_probs, 
             ibis, 
             length,
+            beats,
+            downbeats
         )
 
 
