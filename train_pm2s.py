@@ -5,8 +5,7 @@ import torch.nn as nn
 import warnings
 from beat_tracking.helper_functions import *
 from beat_tracking.data_loading import *
-from beat_tracking.models import MyMadmom
-from beat_tracking.modules import MyMadmomModule, BeatModule
+from beat_tracking.modules import BeatModule
 
 import pytorch_lightning as pl
 
@@ -23,17 +22,13 @@ def train(args):
     #figures_dir = args.figures_dir
     dataset = args.dataset
     epochs = args.epochs
-    only_beats = args.only_beats
     
     model = BeatModule()
     
-    if only_beats:
-        wandb_logger = WandbLogger(project="PM2S-training-"+dataset+"-only_beats")
-    else:
-        wandb_logger = WandbLogger(project="PM2S-training-"+dataset)
+    wandb_logger = WandbLogger(project="PM2S-training-"+dataset)
     
     trainer = pl.Trainer(
-        
+        default_root_dir="pl_checkpoints/",
         logger=wandb_logger,
         log_every_n_steps=50,
         reload_dataloaders_every_n_epochs=True,
@@ -55,7 +50,6 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, help='Which dataset?')
     parser.add_argument('--mode', type=str, help='ismir/pm2s')
     parser.add_argument('--epochs', type=str, help='How many epochs?')
-    parser.add_argument('--only_beats',  type=bool, help='Only beats? (Ignore downbeats)')
 
     args = parser.parse_args()
 

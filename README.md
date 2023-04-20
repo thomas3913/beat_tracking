@@ -3,13 +3,13 @@ beat_tracking repository
 
 Example run commands:
 
-python evaluate_pm2s.py --results_dir "results" --dataset "asap" --mode "pm2s"
+python evaluate_pm2s.py --results_dir "results" --dataset "asap"
 
-python evaluate_ISMIR.py --results_dir "results" --dataset "all" --pianorolls "pretty_midi" --only_beats True --mode "ismir"
+python evaluate_ISMIR.py --results_dir "results" --dataset "all" --pianorolls "pretty_midi" --only_beats True
 
-python train_pm2s.py --dataset "all" --mode "pm2s" --epochs 10 --only_beats True
+python train_pm2s.py --dataset "all" --epochs 10 --only_beats True
 
-python train_ISMIR.py --dataset "asap" --mode "ismir" --epochs 20 --pianorolls "pretty_midi" --only_beats True --stepsize 20
+python train_ISMIR.py --dataset "asap" --epochs 20 --pianorolls "pretty_midi" --only_beats True --stepsize 20
 
 Values for dataset:
 "asap" "amaps" "cpm" "all"
