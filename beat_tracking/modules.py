@@ -449,12 +449,22 @@ class BeatModule(pl.LightningModule):
         #Post processing with RNNJointBeatProcessor:
         post_processor = RNNJointBeatProcessor()
         try:
-            beats = post_processor.process(x,y_b_hat,y_db_hat)
+            beats, beat_activation_function = post_processor.process(x,y_b_hat,y_db_hat)
             evaluate = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats)
             f_b_post = evaluate.fmeasure
         except Exception as e:
             print(e)
+            f_b_post = 0
 
+        # Post processing with DBN:
+        try:
+            proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100)
+            beats_DBN = proc(beat_activation_function)
+            evaluate_2 = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN)
+            f_b_post_DBN = evaluate_2.fmeasure
+        except Exception as e:
+            print(e)
+            f_b_post_DBN = 0
 
         # Logging
         logs = {
@@ -466,7 +476,8 @@ class BeatModule(pl.LightningModule):
             'test_prec_db': precs_db,
             #'test_rec_db': recs_db,
             'test_f_db': fs_db,
-            'f_b_postprocessing':f_b_post
+            'f_b_postprocessing':f_b_post,
+            'f_b_postprocessing_DBN':f_b_post_DBN
             #'test_f1': fs_b,  # this will be used as the monitor for logging and checkpointing callbacks
         }
         self.log_dict(logs, prog_bar=True)

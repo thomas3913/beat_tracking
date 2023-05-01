@@ -31,8 +31,11 @@ class RNNJointBeatProcessor():
 
         onsets = note_seq[:, 1]
         beats = self.pps_dp(beat_probs, downbeat_probs, onsets)
+
+        # Additional function to get the beat activation function for DBN:
+        beat_activation_function = self.calc_baf(note_seq,onsets,beat_probs)
         
-        return beats
+        return beats, beat_activation_function
 
     @staticmethod
     def pps_dp(beat_probs, downbeat_probs, onsets, penalty=1.0):
@@ -115,6 +118,8 @@ class RNNJointBeatProcessor():
         IBIs = np.diff(beats)
         beats_filled = []
 
+        #check following again:
+
         for i in range(len(beats) - 1):
             beats_filled.append(beats[i])
 
@@ -128,6 +133,8 @@ class RNNJointBeatProcessor():
                     for x in range(1, ratio):
                         beats_filled.append(beats[i] + x * ibi / ratio)
         beats = np.sort(np.array(beats_filled))
+
+        # Ask on github about the 2 functions:
 
         # ============= insertions and deletions ======================
         beats_dp = [
@@ -160,4 +167,29 @@ class RNNJointBeatProcessor():
 
         x_best = np.argmin(obj_dp)
         beats = beats_dp[x_best]
+
         return np.array(beats)
+    
+    @staticmethod
+    def calc_baf(note_seq,onsets,beat_probs):
+
+        #determine length of piece by searching max value of (onset+duration):
+        length_of_piece = np.max(note_seq[:,1]+note_seq[:,2])
+
+        beat_activation_function = np.zeros(shape=(int(length_of_piece*100),))
+        bin_array = np.zeros(shape=onsets.shape)
+
+        for h in range(len(beat_activation_function)):
+            beat_activation_function[h] += 0.0001
+
+        for i in range(len(bin_array)):
+            bin_array[i] = int(onsets[i]*100)
+
+        for j,bin in enumerate(bin_array):
+            indcs = np.where(bin_array==bin)
+            prob = np.sum(beat_probs[indcs])/len(indcs[0])
+            #print(bin, type(bin), indcs, prob,beat_probs[j])
+            
+            beat_activation_function[int(bin)] = prob
+
+        return beat_activation_function
