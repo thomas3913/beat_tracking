@@ -15,10 +15,9 @@ warnings.filterwarnings("ignore")
 def evaluate(args):
     data = Pm2sDataModule(args)
     
-    results_dir = args.results_dir
     dataset = args.dataset
 
-    model = BeatModule.load_from_checkpoint(args=args,checkpoint_path="PM2S-training-all/pyqdz026/checkpoints/epoch=29-step=24000.ckpt")
+    model = BeatModule.load_from_checkpoint(args=args,checkpoint_path="PM2S-training-all/ffs82z8g/checkpoints/epoch=19-step=16000.ckpt")
 
     trainer = pl.Trainer(
         default_root_dir="pl_checkpoints/",
@@ -58,8 +57,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Evaluate PM2S.')
 
-    parser.add_argument('--results_dir', type=str, help='Where to store the results.')
-    parser.add_argument('--dataset', type=str, help='Which dataset?')
+    parser.add_argument('--dataset', type=str,default= "all", help='Which dataset?')
 
     args = parser.parse_args()
 

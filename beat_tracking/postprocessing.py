@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 from beat_tracking.pm2s_files.constants import min_bpm, tolerance
+from scipy.stats import norm
+from scipy.ndimage import gaussian_filter1d
+import matplotlib.pyplot as plt
 
 class RNNJointBeatProcessor():
 
@@ -21,21 +24,14 @@ class RNNJointBeatProcessor():
 
         note_seq = np.array(note_seq[0].detach().cpu())
 
-        #print("NOTESEQ",note_seq.shape,type(note_seq))
-        #print("BEATS",beat_probs.shape)
-        #print("DB",downbeat_probs.shape)
-
         # Post-processing
         beat_probs = beat_probs.squeeze(0).detach().cpu().numpy()
         downbeat_probs = downbeat_probs.squeeze(0).detach().cpu().numpy()
 
         onsets = note_seq[:, 1]
         beats = self.pps_dp(beat_probs, downbeat_probs, onsets)
-
-        # Additional function to get the beat activation function for DBN:
-        beat_activation_function = self.calc_baf(note_seq,onsets,beat_probs)
         
-        return beats, beat_activation_function
+        return beats
 
     @staticmethod
     def pps_dp(beat_probs, downbeat_probs, onsets, penalty=1.0):
@@ -83,6 +79,8 @@ class RNNJointBeatProcessor():
             # update beat and downbeat thresholds
             thresh_beats[i] = np.max(beat_probs[l_b:r_b]) * 0.5
             thresh_downbeats[i] = np.max(downbeat_probs[l_db:r_db]) * 0.5
+            
+            
 
         # threshold beat and downbeat probabilities
         beats = onsets[beat_probs > thresh_beats]
@@ -168,28 +166,72 @@ class RNNJointBeatProcessor():
         x_best = np.argmin(obj_dp)
         beats = beats_dp[x_best]
 
-        return np.array(beats)
+        return np.array(beats)       
     
-    @staticmethod
-    def calc_baf(note_seq,onsets,beat_probs):
+    
+# Additional function to get the beat activation function for DBN:
+def get_beat_activation_function_from_probs(note_seq,beat_probs,downbeat_probs):
+    
+    note_seq = np.array(note_seq[0].detach().cpu())
+    
+    beat_probs = beat_probs.squeeze(0).detach().cpu().numpy()
+    downbeat_probs = downbeat_probs.squeeze(0).detach().cpu().numpy()
 
-        #determine length of piece by searching max value of (onset+duration):
-        length_of_piece = np.max(note_seq[:,1]+note_seq[:,2])
+    onsets = note_seq[:, 1]
+        
+    assert np.array_equal(onsets,note_seq[:, 1])
+    assert len(onsets) > 0
 
-        beat_activation_function = np.zeros(shape=(int(length_of_piece*100),))
-        bin_array = np.zeros(shape=onsets.shape)
+    #determine length of piece by searching max value of (onset+duration):
+    length_of_piece = np.max(note_seq[:,1]+note_seq[:,2])
 
-        for h in range(len(beat_activation_function)):
-            beat_activation_function[h] += 0.0001
+    beat_activation_function = np.zeros(shape=(int(length_of_piece*100),))
+    beat_activation_function += 0.0001
+    
+    for o, p in zip(onsets,beat_probs):
+        idx = int(o*100)
+        beat_activation_function[idx] = np.maximum(beat_activation_function[idx],p)
+        
+    beat_activation_function = beat_activation_function / np.max(beat_activation_function)
+    
+    beat_activation_function_modified = beat_activation_function.copy()
+    
+    #Modify by adding half of the values left and right of a peak:
+    for i,elem in enumerate(beat_activation_function_modified[2:-2]):
+        if elem > 0.5:
+            if beat_activation_function_modified[i-1] < 0.5:
+                beat_activation_function_modified[i-1] = elem / 2
+            if beat_activation_function_modified[i+1] < 0.5:
+                beat_activation_function_modified[i+1] = elem / 2
+                
+    #gaussian filter_1d:
+    #scipy.ndimage.gaussian_filter1d
+    test_array = np.zeros(20)
+    test_array[8] = 0.8
+    print(test_array)
+    
+    #plt.clf()
+    #plt.plot(np.arange(20),test_array)
+    #plt.savefig("fig1.png")
+    
+    test_array = gaussian_filter1d(test_array,sigma=1)
+    print(test_array)
+    
+    #plt.clf()
+    #plt.plot(np.arange(20),test_array)
+    #plt.savefig("fig2.png")
+    
+    beat_activation_function = gaussian_filter1d(beat_activation_function,sigma=1)
+    
+        
+    #old version:
+    #bin_array = np.zeros(shape=onsets.shape)
+    #for i in range(len(bin_array)):
+    #    bin_array[i] = int(onsets[i]*100)
 
-        for i in range(len(bin_array)):
-            bin_array[i] = int(onsets[i]*100)
+    #for j,bin in enumerate(bin_array):
+    #    indcs = np.where(bin_array==bin)
+    #    prob = np.sum(beat_probs[indcs])/len(indcs[0])        
+    #    beat_activation_function[int(bin)] = prob
 
-        for j,bin in enumerate(bin_array):
-            indcs = np.where(bin_array==bin)
-            prob = np.sum(beat_probs[indcs])/len(indcs[0])
-            #print(bin, type(bin), indcs, prob,beat_probs[j])
-            
-            beat_activation_function[int(bin)] = prob
-
-        return beat_activation_function
+    return beat_activation_function, beat_activation_function_modified

@@ -3,9 +3,10 @@ import torch.nn.functional as F
 import torch
 
 import pytorch_lightning as pl
+import matplotlib.pyplot as plt
 
 from beat_tracking.models import MyMadmom, RNNJointBeatModel
-from beat_tracking.postprocessing import RNNJointBeatProcessor
+from beat_tracking.postprocessing import RNNJointBeatProcessor, get_beat_activation_function_from_probs
 from beat_tracking.helper_functions import *
 
 import madmom
@@ -29,7 +30,7 @@ def configure_callbacks(monitor='f_score_b', mode='max'):
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         monitor=monitor,
         mode=mode,
-        save_top_k=3,
+        save_top_k=1,
         filename='{epoch}-{val_loss:.2f}-{val_f1:.2f}',
         save_last=True,
     )
@@ -204,7 +205,12 @@ class MyMadmomModule(pl.LightningModule):
         if padded_array.shape[2] > 88:
             padded_array = padded_array[:,:,21:109]
 
-        outputs = self(padded_array)        
+        outputs = self(padded_array)
+        
+        baf = outputs[0][:,0].detach().cpu().numpy()
+        #plt.clf()
+        #plt.plot(np.arange(1000),baf[:1000])
+        #plt.savefig("temp_fig.png")
 
         #Calculate F-Score (Beats):
         try:
@@ -448,23 +454,28 @@ class BeatModule(pl.LightningModule):
 
         #Post processing with RNNJointBeatProcessor:
         post_processor = RNNJointBeatProcessor()
-        try:
-            beats, beat_activation_function = post_processor.process(x,y_b_hat,y_db_hat)
-            evaluate = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats)
-            f_b_post = evaluate.fmeasure
-        except Exception as e:
-            print(e)
-            f_b_post = 0
-
+        beats = post_processor.process(x,y_b_hat,y_db_hat)
+        evaluate = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats)
+        f_b_post = evaluate.fmeasure
+            
         # Post processing with DBN:
-        try:
-            proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100)
-            beats_DBN = proc(beat_activation_function)
-            evaluate_2 = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN)
-            f_b_post_DBN = evaluate_2.fmeasure
-        except Exception as e:
-            print(e)
-            f_b_post_DBN = 0
+        beat_activation_function, beat_activation_function_modified = get_beat_activation_function_from_probs(x,y_b_hat,y_db_hat)
+        proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100,min_bpm=55.0, max_bpm=215.0, transition_lambda=100, threshold=0.05)
+        assert len(beat_activation_function) > 0
+        beats_DBN = proc(beat_activation_function)
+        
+        proc_2 = madmom.features.beats.DBNBeatTrackingProcessor(fps=100,min_bpm=55.0, max_bpm=215.0, transition_lambda=100, threshold=0.05)
+        beats_DBN_modified = proc_2(beat_activation_function_modified)
+        
+        #plt.clf()
+        #plt.plot(np.arange(1000),beat_activation_function[:1000])
+        #plt.savefig("temp_fig_2.png")
+        
+        evaluate_2 = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN)
+        f_b_post_DBN = evaluate_2.fmeasure
+        
+        evaluate_2_modified = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN_modified)
+        f_b_post_DBN_modified = evaluate_2_modified.fmeasure
 
         # Logging
         logs = {
@@ -477,7 +488,8 @@ class BeatModule(pl.LightningModule):
             #'test_rec_db': recs_db,
             'test_f_db': fs_db,
             'f_b_postprocessing':f_b_post,
-            'f_b_postprocessing_DBN':f_b_post_DBN
+            'f_b_postprocessing_DBN':f_b_post_DBN,
+            'f_b_postprocessing_DBN_modified':f_b_post_DBN_modified,
             #'test_f1': fs_b,  # this will be used as the monitor for logging and checkpointing callbacks
         }
         self.log_dict(logs, prog_bar=True)
