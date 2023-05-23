@@ -197,31 +197,31 @@ def get_beat_activation_function_from_probs(note_seq,beat_probs,downbeat_probs):
     beat_activation_function_modified = beat_activation_function.copy()
     
     #Modify by adding half of the values left and right of a peak:
-    for i,elem in enumerate(beat_activation_function_modified[2:-2]):
-        if elem > 0.5:
-            if beat_activation_function_modified[i-1] < 0.5:
-                beat_activation_function_modified[i-1] = elem / 2
-            if beat_activation_function_modified[i+1] < 0.5:
-                beat_activation_function_modified[i+1] = elem / 2
+    #for i,elem in enumerate(beat_activation_function_modified[2:-2]):
+    #    if elem > 0.5:
+    #        if beat_activation_function_modified[i-1] < 0.5:
+    #            beat_activation_function_modified[i-1] = elem / 2
+    #        if beat_activation_function_modified[i+1] < 0.5:
+    #            beat_activation_function_modified[i+1] = elem / 2
                 
     #gaussian filter_1d:
     #scipy.ndimage.gaussian_filter1d
-    test_array = np.zeros(20)
-    test_array[8] = 0.8
-    print(test_array)
+    #test_array = np.zeros(20)
+    #test_array[8] = 0.8
+    #print(test_array)
     
     #plt.clf()
     #plt.plot(np.arange(20),test_array)
     #plt.savefig("fig1.png")
     
-    test_array = gaussian_filter1d(test_array,sigma=1)
-    print(test_array)
+    #test_array = gaussian_filter1d(test_array,sigma=1)
+    #print(test_array)
     
     #plt.clf()
     #plt.plot(np.arange(20),test_array)
     #plt.savefig("fig2.png")
     
-    beat_activation_function = gaussian_filter1d(beat_activation_function,sigma=1)
+    beat_activation_function_modified = gaussian_filter1d(beat_activation_function,sigma=1)
     
         
     #old version:

@@ -228,7 +228,7 @@ class MyMadmom(nn.Module):
         beats = self.beats1(x)
         beats = torch.transpose(beats,0,1)
         beats = self.beats2(beats)
-        beats = self.beats3(beats)   
+        beats = self.beats3(beats)
         
         downbeats = self.downbeats1(x)
         downbeats = torch.transpose(downbeats,0,1)

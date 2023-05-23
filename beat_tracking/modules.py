@@ -32,14 +32,16 @@ def configure_callbacks(monitor='f_score_b', mode='max'):
         mode=mode,
         save_top_k=1,
         filename='{epoch}-{val_loss:.2f}-{val_f1:.2f}',
-        save_last=True,
+        save_last=False,
     )
     earlystop_callback = pl.callbacks.EarlyStopping(
         monitor=monitor,
         patience=200,
         mode=mode,
     )
-    return [checkpoint_callback, earlystop_callback]
+    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
+    
+    return [checkpoint_callback, earlystop_callback, lr_monitor]
 
 
 def f_measure_framewise(y, y_hat):
@@ -265,7 +267,7 @@ class BeatModule(pl.LightningModule):
         return configure_optimizers_pm2s(self)
 
     def configure_callbacks(self):
-        pass
+        return configure_callbacks(monitor='val_f_b')
 
     def training_step(self, batch, batch_idx):
         # Data

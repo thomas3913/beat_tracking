@@ -17,7 +17,7 @@ def evaluate(args):
     
     dataset = args.dataset
 
-    model = BeatModule.load_from_checkpoint(args=args,checkpoint_path="PM2S-training-all/ffs82z8g/checkpoints/epoch=19-step=16000.ckpt")
+    model = BeatModule.load_from_checkpoint(args=args,checkpoint_path="PM2S-training-all/rmbqk84y/checkpoints/epoch=8-val_loss=5.63-val_f1=0.00.ckpt")
 
     trainer = pl.Trainer(
         default_root_dir="pl_checkpoints/",
