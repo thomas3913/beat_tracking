@@ -297,8 +297,10 @@ class BaseDataset(torch.utils.data.Dataset):
         for key in annotations.keys():
             if key in ['onsets_musical', 'note_value', 'hands', 'hands_mask'] and annotations[key] is not None:
                 annotations[key] = annotations[key][start_idx:end_idx]
+                
+        pianoroll = np.load(row["midi_perfm"][:-4]+"_pianoroll_pm.npy")
 
-        return note_sequence, annotations
+        return note_sequence, annotations, pianoroll
 
 
 
@@ -310,7 +312,7 @@ class BeatDataset(BaseDataset):
     def __getitem__(self, idx):
 
         row = self._sample_row(idx)
-        note_sequence, annotations = self._load_data(row)
+        note_sequence, annotations, pianoroll = self._load_data(row)
 
         # Get model output data
         # beats downbeats
@@ -365,12 +367,12 @@ class BeatDataset(BaseDataset):
             ibis, 
             length,
             beats,
-            downbeats
+            downbeats,
+            pianoroll
         )
 
 
-
-class Pm2sDataModule(pl.LightningDataModule):
+class CombinedDataModule(pl.LightningDataModule):
 
     def __init__(self, args):
         super().__init__()

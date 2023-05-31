@@ -59,7 +59,6 @@ class MyMadmomModule(pl.LightningModule):
     def __init__(self,args):
         super().__init__()
         self.model = MyMadmom()
-        self.only_beats = args.only_beats
         self.stepsize = args.stepsize
         
     def forward(self,x):
@@ -76,7 +75,8 @@ class MyMadmomModule(pl.LightningModule):
     def training_step(self,batch,batch_idx):
 
         criterion = torch.nn.BCELoss()
-        file,beats,downbeats,idx,pr = batch
+        #file,beats,downbeats,idx,pr = batch
+        _,_,_,_,_,beats,downbeats,pr = batch
         if pr.shape[1] > 100000:
             return None
 
@@ -100,18 +100,12 @@ class MyMadmomModule(pl.LightningModule):
         loss_b = criterion(outputs[0][:,0].float(),beat_activation.float())
         loss_db = criterion(outputs[1][:,0].float(),beat_activation_db.float())
         
-        if self.only_beats == False:
-            loss = loss_b + loss_db
-            logs = {
-            'train_loss': loss,
-            'train_loss_b': loss_b,
-            'train_loss_db': loss_db,
-            }
-        else:
-            loss = loss_b
-            logs = {
-            'train_loss': loss,
-            }
+        loss = loss_b + loss_db
+        logs = {
+        'train_loss': loss,
+        'train_loss_b': loss_b,
+        'train_loss_db': loss_db,
+        }
 
         self.log_dict(logs, prog_bar=True)
 
@@ -120,7 +114,8 @@ class MyMadmomModule(pl.LightningModule):
     def validation_step(self,batch,batch_idx):
 
         criterion = torch.nn.BCELoss()
-        file,beats,downbeats,idx,pr = batch
+        #file,beats,downbeats,idx,pr = batch
+        _,_,_,_,_,beats,downbeats,pr = batch
         if pr.shape[1] > 100000:
             return None
         padded_array = cnn_pad(pr.float(),2)
@@ -144,10 +139,6 @@ class MyMadmomModule(pl.LightningModule):
         loss_b = criterion(outputs[0][:,0].float(),beat_activation.float())
         loss_db = criterion(outputs[1][:,0].float(),beat_activation_db.float())
 
-        #New evaluation score: F-measure framewise
-        acc_b, prec_b, rec_b, f_b = f_measure_framewise(beat_activation.detach().cpu().float(), np.round(outputs[0][:,0].detach().cpu().float()))
-        acc_db, prec_db, rec_db, f_db = f_measure_framewise(beat_activation_db.detach().cpu().float(), np.round(outputs[1][:,0].detach().cpu().float()))
-        
         #Calculate F-Score (Beats):
         try:
             proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100)
@@ -159,38 +150,28 @@ class MyMadmomModule(pl.LightningModule):
             f_score_val = 0
             
         #Calculate F-Score (Downbeats):
-        if self.only_beats == False:
-            loss = loss_b + loss_db
+        loss = loss_b + loss_db
 
-            combined_0 = outputs[0].detach().cpu().numpy().squeeze()
-            combined_1 = outputs[1].detach().cpu().numpy().squeeze()
-            combined_act = np.vstack((np.maximum(combined_0 - combined_1, 0), combined_1)).T
+        combined_0 = outputs[0].detach().cpu().numpy().squeeze()
+        combined_1 = outputs[1].detach().cpu().numpy().squeeze()
+        combined_act = np.vstack((np.maximum(combined_0 - combined_1, 0), combined_1)).T
 
-            try:
-                proc_db = madmom.features.downbeats.DBNDownBeatTrackingProcessor(beats_per_bar=[2,3,4],fps=100)
-                beat_times_db = proc_db(combined_act)
-                evaluate_db = madmom.evaluation.beats.BeatEvaluation(beat_times_db, downbeats[0].cpu(), downbeats=True)
-                fscore_db_val = evaluate_db.fmeasure
-            except Exception as e:
-                print("Test sample cannot be processed correctly. Error in downbeat process:",e)
-                fscore_db_val = 0
-            
-            logs = {
-                'val_loss': loss,
-                'val_loss_b': loss_b,
-                'val_loss_db': loss_db,
-                'f_score_b': f_score_val,
-                'f_score_db': fscore_db_val,
-                'framewise_f_b':f_b,
-                'framewise_f_db':f_db,
-            }
-        else:
-            loss = loss_b
-            logs = {
-                'val_loss': loss,
-                'f_score_b': f_score_val,
-                'framewise_f_b':f_b,
-            }
+        try:
+            proc_db = madmom.features.downbeats.DBNDownBeatTrackingProcessor(beats_per_bar=[2,3,4],fps=100)
+            beat_times_db = proc_db(combined_act)
+            evaluate_db = madmom.evaluation.beats.BeatEvaluation(beat_times_db, downbeats[0].cpu(), downbeats=True)
+            fscore_db_val = evaluate_db.fmeasure
+        except Exception as e:
+            print("Test sample cannot be processed correctly. Error in downbeat process:",e)
+            fscore_db_val = 0
+        
+        logs = {
+            'val_loss': loss,
+            'val_loss_b': loss_b,
+            'val_loss_db': loss_db,
+            'val_f_b': f_score_val,
+            'val_f_db': fscore_db_val,
+        }
 
         self.log_dict(logs, prog_bar=True)
         
@@ -198,7 +179,8 @@ class MyMadmomModule(pl.LightningModule):
     
     def test_step(self,batch,batch_idx):
 
-        file,beats,downbeats,idx,pr = batch
+        #file,beats,downbeats,idx,pr = batch
+        _,_,_,_,_,beats,downbeats,pr = batch
         if pr.shape[1] > 100000:
             return None
         padded_array = cnn_pad(pr.float(),2)
@@ -225,29 +207,24 @@ class MyMadmomModule(pl.LightningModule):
             f_score_test = 0
             
         #Calculate F-Score (Downbeats):
-        if self.only_beats == False:
 
-            combined_0 = outputs[0].detach().cpu().numpy().squeeze()
-            combined_1 = outputs[1].detach().cpu().numpy().squeeze()
-            combined_act = np.vstack((np.maximum(combined_0 - combined_1, 0), combined_1)).T
+        combined_0 = outputs[0].detach().cpu().numpy().squeeze()
+        combined_1 = outputs[1].detach().cpu().numpy().squeeze()
+        combined_act = np.vstack((np.maximum(combined_0 - combined_1, 0), combined_1)).T
 
-            try:
-                proc_db = madmom.features.downbeats.DBNDownBeatTrackingProcessor(beats_per_bar=[2,3,4],fps=100)
-                beat_times_db = proc_db(combined_act)
-                evaluate_db = madmom.evaluation.beats.BeatEvaluation(beat_times_db, downbeats[0].cpu(), downbeats=True)
-                fscore_db_test = evaluate_db.fmeasure
-            except Exception as e:
-                print("Test sample cannot be processed correctly. Error in downbeat process:",e)
-                fscore_db_test = 0
-            
-            logs = {
-                'f_score_b_test': f_score_test,
-                'f_score_db_test': fscore_db_test,
-            }
-        else:
-            logs = {
-                'f_score_b_test': f_score_test,
-            }
+        try:
+            proc_db = madmom.features.downbeats.DBNDownBeatTrackingProcessor(beats_per_bar=[2,3,4],fps=100)
+            beat_times_db = proc_db(combined_act)
+            evaluate_db = madmom.evaluation.beats.BeatEvaluation(beat_times_db, downbeats[0].cpu(), downbeats=True)
+            fscore_db_test = evaluate_db.fmeasure
+        except Exception as e:
+            print("Test sample cannot be processed correctly. Error in downbeat process:",e)
+            fscore_db_test = 0
+        
+        logs = {
+            'f_score_b_test': f_score_test,
+            'f_score_db_test': fscore_db_test,
+        }
 
         self.log_dict(logs, prog_bar=True)
         
@@ -271,7 +248,7 @@ class BeatModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # Data
-        x, y_b, y_db, y_ibi, length, _, _ = batch
+        x, y_b, y_db, y_ibi, length, _, _, _ = batch
         x = x.float()
         y_b = y_b.float()
         y_db = y_db.float()
@@ -308,7 +285,7 @@ class BeatModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         # Data
-        x, y_b, y_db, y_ibi, length, _, _ = batch
+        x, y_b, y_db, y_ibi, length, _, _ ,_= batch
         x = x.float()
         y_b = y_b.float()
         y_db = y_db.float()
@@ -395,7 +372,7 @@ class BeatModule(pl.LightningModule):
     
     def test_step(self,batch,batch_idx):
         # Data
-        x, y_b, y_db, y_ibi, length, y_beats, y_downbeats = batch
+        x, y_b, y_db, y_ibi, length, y_beats, y_downbeats,_ = batch
         x = x.float()
         y_b = y_b.float()
         y_db = y_db.float()
