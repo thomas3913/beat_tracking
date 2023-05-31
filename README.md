@@ -7,10 +7,10 @@ python evaluate_pm2s.py --dataset "all"
 
 python evaluate_ISMIR.py --dataset "all"
 
-python train_pm2s.py --dataset "all" --epochs 50
+python train_pm2s.py --dataset "all" --epochs 50\\
 python train_pm2s.py --dataset "all" --epochs 50 --full_train
 
-python train_ISMIR.py --dataset "all" --epochs 50 --stepsize 15
+python train_ISMIR.py --dataset "all" --epochs 50 --stepsize 15\\
 python train_ISMIR.py --dataset "all" --epochs 50 --stepsize 15 --full_train
 
 Values for dataset:
