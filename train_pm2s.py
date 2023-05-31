@@ -28,6 +28,7 @@ def train(args):
     wandb_logger = WandbLogger(project="PM2S-training-"+dataset)
     
     trainer = pl.Trainer(
+        #callbacks=[]
         default_root_dir="pl_checkpoints/",
         logger=wandb_logger,
         log_every_n_steps=50,
@@ -39,6 +40,8 @@ def train(args):
     )
     
     trainer.fit(model, data)
+    
+    #trainer.test(model, data)
         
         
 if __name__ == '__main__':

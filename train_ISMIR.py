@@ -22,13 +22,15 @@ def train(args):
     
     dataset = args.dataset
     epochs = args.epochs
-    full_train = args.full_train
     stepsize = args.stepsize
+    full_train = args.full_train
+    
+    print(full_train)
     
     model = MyMadmomModule(args)
     #model = MyMadmomModule.load_from_checkpoint(args=args, checkpoint_path="/home/thomass/beat_tracking/ISMIR-training-all-pretty_midi-step_size_20-only_beats/9pjqc8mu/checkpoints/epoch=20-val_loss=0.09-val_f1=0.00.ckpt")
     
-    wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-full_train_"+full_train+"-step_size_"+str(stepsize))
+    wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-step_size_"+str(stepsize)+"-full_train_"+str(full_train))
     
     trainer = pl.Trainer(
         default_root_dir="pl_checkpoints/",
@@ -50,8 +52,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--dataset', type=str, help='Which dataset?')
     parser.add_argument('--epochs', type=str, help='How many epochs?')
-    parser.add_argument('--full_train',type=bool,help="Train on the whole dataset")
     parser.add_argument('--stepsize',  type=int, help='Adjust learning rate after ... epochs')
+    parser.add_argument('--full_train', default=False, action='store_true', help='Train on the whole dataset')
 
     args = parser.parse_args()
 
