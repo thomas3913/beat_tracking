@@ -17,23 +17,20 @@ warnings.filterwarnings("ignore")
 # TRAINING LOOP
 
 def train(args):
-    data = MyDataModule(args)
+    #data = MyDataModule(args)
+    data = CombinedDataModule(args)
     
-    #checkpoints_dir = args.checkpoints_dir
-    #figures_dir = args.figures_dir
     dataset = args.dataset
     epochs = args.epochs
-    pianorolls = args.pianorolls
-    only_beats = args.only_beats
     stepsize = args.stepsize
+    full_train = args.full_train
     
-    #model = MyMadmomModule(args)
-    model = MyMadmomModule.load_from_checkpoint(args=args, checkpoint_path="/home/thomass/beat_tracking/ISMIR-training-all-pretty_midi-step_size_20-only_beats/9pjqc8mu/checkpoints/epoch=20-val_loss=0.09-val_f1=0.00.ckpt")
+    print(full_train)
     
-    if only_beats:
-        wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-"+pianorolls+"-step_size_"+str(stepsize)+"-only_beats")
-    else:
-        wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-"+pianorolls+"-step_size_"+str(stepsize))
+    model = MyMadmomModule(args)
+    #model = MyMadmomModule.load_from_checkpoint(args=args, checkpoint_path="/home/thomass/beat_tracking/ISMIR-training-all-pretty_midi-step_size_20-only_beats/9pjqc8mu/checkpoints/epoch=20-val_loss=0.09-val_f1=0.00.ckpt")
+    
+    wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-step_size_"+str(stepsize)+"-full_train_"+str(full_train))
     
     trainer = pl.Trainer(
         default_root_dir="pl_checkpoints/",
@@ -53,13 +50,10 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train ISMIR.')
 
-    #parser.add_argument('--checkpoints_dir', type=str, help='Where to store the results.')
-    #parser.add_argument('--figures_dir', type=str, help='Where to store the plots.')
     parser.add_argument('--dataset', type=str, help='Which dataset?')
     parser.add_argument('--epochs', type=str, help='How many epochs?')
-    parser.add_argument('--pianorolls', type=str, help='Partitura/pretty_midi')
-    parser.add_argument('--only_beats',  type=bool, help='Only beats? (Ignore downbeats)')
     parser.add_argument('--stepsize',  type=int, help='Adjust learning rate after ... epochs')
+    parser.add_argument('--full_train', default=False, action='store_true', help='Train on the whole dataset')
 
     args = parser.parse_args()
 

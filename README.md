@@ -3,19 +3,21 @@ beat_tracking repository
 
 Example run commands:
 
-python evaluate_pm2s.py --dataset "asap"
+python evaluate_pm2s.py --dataset "all"
 
-python evaluate_ISMIR.py --dataset "all" --pianorolls "pretty_midi" --only_beats True
+python evaluate_ISMIR.py --dataset "all"
 
-python train_pm2s.py --dataset "all" --epochs 10 --only_beats True
+python train_pm2s.py --dataset "all" --epochs 50
 
-python train_ISMIR.py --dataset "asap" --epochs 20 --pianorolls "pretty_midi" --only_beats True --stepsize 20
+python train_pm2s.py --dataset "all" --epochs 50 --full_train
+
+python train_ISMIR.py --dataset "all" --epochs 50 --stepsize 15
+
+python train_ISMIR.py --dataset "all" --epochs 50 --stepsize 15 --full_train
 
 Values for dataset:
 "asap" "amaps" "cpm" "all"
 
-Values for pianorolls: "partitura" "pretty_midi"
-
-Values for only_beats: "False" "True"
-
 Stepsize datermines the number of epochs before the learning rate is adjusted by a factor of 0.1
+
+full_train uses the whole specified dataset as the training set
