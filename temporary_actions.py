@@ -20,6 +20,7 @@ cpm_list = get_midi_filelist(["cpm"])
 amaps_list = get_midi_filelist(["amaps"])
 asap_list = get_midi_filelist(["asap"])
 
+"""
 for i in range(1):
     midi_file = cpm_list[0][i]
     print(midi_file)
@@ -44,3 +45,11 @@ for i in range(1):
     plt.vlines(beats*100,ymin=0,ymax=88)
     plt.title(midi_file)
     plt.savefig("pianorolls/test_pm.png")
+"""
+
+print(asap_list[0])
+pr = np.load(asap_list[0][:-4]+"_pianoroll_pm.npy")
+
+fig, ax = plt.subplots(1, figsize=(16, 4))
+ax.imshow(pr[:3000].T, origin="lower", cmap='gray', interpolation='nearest', aspect='auto')
+plt.savefig("pianorolls/Shi05M_pm.png")
