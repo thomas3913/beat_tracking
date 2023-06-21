@@ -101,6 +101,26 @@ def get_midi_filelist(dataset_list):
 
     return midi_filelist
 
+def get_audio_filelist(dataset_list):
+
+    df = pd.read_csv("metadata_ASAP.csv")
+
+    for i,el in enumerate(dataset_list):
+        dataset_list[i]= el.upper()
+
+    for elemnt in dataset_list:
+        if elemnt not in ["ASAP"]:
+            print("You can only enter ASAP")
+            raise ValueError
+        
+    audio_filelist = list()
+
+    for i in range(len(list(df["audio_performance"]))):
+        if type(df["audio_performance"][i]) == str:
+            audio_filelist.append(df["audio_performance"][i])
+    
+    return audio_filelist
+
 def get_split_lists(filelist):
     train_list = list()
     validation_list = list()
@@ -121,51 +141,108 @@ def get_split_lists(filelist):
             not_used.append(element)
     return train_list, validation_list, test_list
 
+def get_split_lists_audio(filelist):
+    df = pd.read_csv("metadata_ASAP.csv")
+
+    training_split = 0.8
+    validation_split = 0.1
+
+    # Create a list with all pieces = folders:
+    folder_list = list()
+    for element in filelist:
+        if df.loc[df["audio_performance"] == element]["folder"].iloc[0] not in folder_list:
+            folder_list.append(df.loc[df["audio_performance"] == element]["folder"].iloc[0])
+
+    train_list_folder = list()
+    validation_list_folder = list()
+    test_list_folder = list()
+    composer_list = list()
+
+    # Set random seed so that the training/validation/test split is reproducible:
+    random.seed(4)
+
+    for i in range(len(folder_list)):
+        composer = df.loc[df["folder"] == folder_list[i]]["composer"].iloc[0]
+        if composer not in composer_list:
+            composer_list.append(composer)
+
+    # Apply the split values composer-wise:
+    for element in composer_list:
+        composer_pieces = list()
+        for elem in folder_list:
+            if df.loc[df["folder"] == elem]["composer"].iloc[0] == element:
+                composer_pieces.append(elem)
+                random.shuffle(composer_pieces)
+
+        split_index = int(len(composer_pieces)*training_split)
+        split_index_2 = int(len(composer_pieces)*(training_split + validation_split))
+
+        for i in range(len(composer_pieces))[:split_index]:
+            train_list_folder.append(composer_pieces[i])
+        for j in range(len(composer_pieces))[split_index:split_index_2]:
+            validation_list_folder.append(composer_pieces[j])
+        for k in range(len(composer_pieces))[split_index_2:]:
+            test_list_folder.append(composer_pieces[k])
+
+    # Create lists for our datasets:
+    train_list = list()
+    validation_list = list()
+    test_list = list()
+
+    for element in filelist:
+        if df.loc[df["audio_performance"] == element]["folder"].iloc[0] in train_list_folder:
+            train_list.append(element)
+        elif df.loc[df["audio_performance"] == element]["folder"].iloc[0] in validation_list_folder:
+            validation_list.append(element)
+        elif df.loc[df["audio_performance"] == element]["folder"].iloc[0] in test_list_folder:
+            test_list.append(element)
+
+    return train_list, validation_list, test_list
+
+
 class Audio_Dataset(Dataset):
     def __init__(self,file_list,pianorolls=None):
         self.file_list = file_list
-        self.pianorolls = pianorolls
+        self.asap_dataset = "data/asap-dataset/"
 
-    def __getitem__(self, index):
-        if df2.loc[df2["midi_perfm"] == self.file_list[index]]["source"].iloc[0] == "ASAP":  
-            annotation_file = self.file_list[index][:-4]+"_annotations.txt"
-            beats = beat_list_to_array(annotation_file,"annotations","beats")
-            downbeats = beat_list_to_array(annotation_file,"annotations","downbeats")
-        else:
-            annot_from_midi = get_note_sequence_and_annotations_from_midi(self.file_list[index])
-            beats = annot_from_midi[1]['beats']
-            downbeats = annot_from_midi[1]['downbeats']
+    def __getitem__(self, index): 
+        annotation_file = self.asap_dataset+self.file_list[index][:-4]+"_annotations.txt"
 
-        if self.pianorolls == "partitura":
-            pr = np.load(self.file_list[index][:-4]+"_pianoroll.npy")
-        else:
-            pr = np.load(self.file_list[index][:-4]+"_pianoroll_pm.npy")
-        return self.file_list[index], beats, downbeats, index, pr
+        annot = get_annotations_from_annot_file(annotation_file)
+
+        beats = annot['beats']
+        downbeats = annot['downbeats']
+
+        spectrogram = np.load(self.asap_dataset+self.file_list[index][:-4]+"_spec.npy")
+
+        pr = np.load(self.asap_dataset+self.file_list[index][:-4]+"_pianoroll_pm.npy")
+
+        return self.file_list[index], beats, downbeats, spectrogram, pr, index
     
     def __len__(self):
         return len(self.file_list)
         
 
-class MyDataModule(pl.LightningDataModule):
+# For ASAP:
+class Audio_and_pr_DataModule(pl.LightningDataModule):
 
     def __init__(self, args):
         super().__init__()
         
         # Parameters from input arguments
         self.dataset = args.dataset
-        self.pianorolls = args.pianorolls
         
         if self.dataset == "all":
-            self.file_list = get_midi_filelist(["AMAPS","ASAP","CPM"])
+            self.file_list = get_audio_filelist(["ASAP"])
         else:
             self.file_list = get_midi_filelist([self.dataset])
 
-        self.df2 = pd.read_csv("metadata.csv")
+        self.df = pd.read_csv("metadata_ASAP.csv")
 
     def _get_dataset(self, split):
-        train_list,validation_list,test_list = get_split_lists(self.file_list)
+        train_list,validation_list,test_list = get_split_lists_audio(self.file_list)
         split_dict = {"train":train_list,"valid":validation_list,"test":test_list}
-        dataset = Audio_Dataset(split_dict[split],self.pianorolls)
+        dataset = Audio_Dataset(split_dict[split])
         return dataset
 
     def train_dataloader(self):
