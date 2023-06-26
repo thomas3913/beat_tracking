@@ -204,6 +204,7 @@ class Audio_Dataset(Dataset):
     def __init__(self,file_list,pianorolls=None):
         self.file_list = file_list
         self.asap_dataset = "data/asap-dataset/"
+        self.asap_dataset_spectrograms = "data/asap-dataset-spectrograms/"
 
     def __getitem__(self, index): 
         annotation_file = self.asap_dataset+self.file_list[index][:-4]+"_annotations.txt"
@@ -213,7 +214,7 @@ class Audio_Dataset(Dataset):
         beats = annot['beats']
         downbeats = annot['downbeats']
 
-        spectrogram = np.load(self.asap_dataset+self.file_list[index][:-4]+"_spec.npy")
+        spectrogram = np.load(self.asap_dataset_spectrograms+self.file_list[index][:-4]+"_spec.npy")
 
         pr = np.load(self.asap_dataset+self.file_list[index][:-4]+"_pianoroll_pm.npy")
 

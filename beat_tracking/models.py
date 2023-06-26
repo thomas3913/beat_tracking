@@ -118,6 +118,7 @@ def read_note_sequence(midi_file):
     note_seq = np.array([[note.pitch, note.start, note.end - note.start, note.velocity] for note in notes])
     return note_seq
 
+
 class MyMadmom(nn.Module):
 
     def __init__(self):
