@@ -224,6 +224,181 @@ class AudioModule(pl.LightningModule):
         return {'test_loss': 0, 'logs': logs}
 
 
+class MyMadmomModule_pr(pl.LightningModule):
+    def __init__(self,args):
+        super().__init__()
+        self.model = MyMadmom()
+        self.stepsize = args.stepsize
+        
+    def forward(self,x):
+        return self.model(x)
+    
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.model.parameters(),lr=0.001,weight_decay=1e-5)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.stepsize, gamma=0.1)
+        return [optimizer],[scheduler]
+    
+    def configure_callbacks(self):
+        return configure_callbacks(monitor='val_f_b')
+    
+    def training_step(self,batch,batch_idx):
+
+        criterion = torch.nn.BCELoss()
+        #file,beats,downbeats,idx,pr = batch
+        _, beats, downbeats, _, pr, _ = batch
+        if pr.shape[1] > 100000:
+            return None
+
+        padded_array = cnn_pad(pr.float(),2)
+        padded_array = torch.tensor(padded_array)
+
+        if padded_array.shape[2] > 88:
+            padded_array = padded_array[:,:,21:109]
+
+        outputs = self(padded_array)
+        # Get beat activation function from the time annotations and widen beat targets for better accuracy:                
+        beat_activation = madmom.utils.quantize_events(beats[0].cpu(), fps=100, length=len(pr[0]))
+        widen_beat_targets(beat_activation)
+        beat_activation = torch.tensor(beat_activation).cuda()
+
+        # Same for downbeats:
+        beat_activation_db = madmom.utils.quantize_events(downbeats[0].cpu(), fps=100, length=len(pr[0]))
+        widen_beat_targets(beat_activation_db)
+        beat_activation_db = torch.tensor(beat_activation_db).cuda()
+
+        loss_b = criterion(outputs[0][:,0].float(),beat_activation.float())
+        loss_db = criterion(outputs[1][:,0].float(),beat_activation_db.float())
+        
+        loss = loss_b + loss_db
+        logs = {
+        'train_loss': loss,
+        'train_loss_b': loss_b,
+        'train_loss_db': loss_db,
+        }
+
+        self.log_dict(logs, prog_bar=True)
+
+        return {'loss': loss, 'logs': logs}
+    
+    def validation_step(self,batch,batch_idx):
+
+        criterion = torch.nn.BCELoss()
+        #file,beats,downbeats,idx,pr = batch
+        _, beats, downbeats, _, pr, _ = batch
+        if pr.shape[1] > 100000:
+            return None
+        padded_array = cnn_pad(pr.float(),2)
+        padded_array = torch.tensor(padded_array)
+
+        if padded_array.shape[2] > 88:
+            padded_array = padded_array[:,:,21:109]
+
+        outputs = self(padded_array)        
+        
+        # Get beat activation function from the time annotations and widen beat targets for better accuracy:                
+        beat_activation = madmom.utils.quantize_events(beats[0].cpu(), fps=100, length=len(pr[0]))
+        widen_beat_targets(beat_activation)
+        beat_activation = torch.tensor(beat_activation).cuda()
+
+        # Same for downbeats:
+        beat_activation_db = madmom.utils.quantize_events(downbeats[0].cpu(), fps=100, length=len(pr[0]))
+        widen_beat_targets(beat_activation_db)
+        beat_activation_db = torch.tensor(beat_activation_db).cuda()
+        
+        loss_b = criterion(outputs[0][:,0].float(),beat_activation.float())
+        loss_db = criterion(outputs[1][:,0].float(),beat_activation_db.float())
+
+        #Calculate F-Score (Beats):
+        try:
+            proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100)
+            beat_times = proc(outputs[0][:,0].detach().cpu().numpy())
+            evaluate = madmom.evaluation.beats.BeatEvaluation(beat_times, beats[0].cpu())
+            f_score_val = evaluate.fmeasure
+        except Exception as e:
+            print("Test sample cannot be processed correctly. Error in beat process:",e)
+            f_score_val = 0
+            
+        #Calculate F-Score (Downbeats):
+        loss = loss_b + loss_db
+
+        combined_0 = outputs[0].detach().cpu().numpy().squeeze()
+        combined_1 = outputs[1].detach().cpu().numpy().squeeze()
+        combined_act = np.vstack((np.maximum(combined_0 - combined_1, 0), combined_1)).T
+
+        try:
+            proc_db = madmom.features.downbeats.DBNDownBeatTrackingProcessor(beats_per_bar=[2,3,4],fps=100)
+            beat_times_db = proc_db(combined_act)
+            evaluate_db = madmom.evaluation.beats.BeatEvaluation(beat_times_db, downbeats[0].cpu(), downbeats=True)
+            fscore_db_val = evaluate_db.fmeasure
+        except Exception as e:
+            print("Test sample cannot be processed correctly. Error in downbeat process:",e)
+            fscore_db_val = 0
+        
+        logs = {
+            'val_loss': loss,
+            'val_loss_b': loss_b,
+            'val_loss_db': loss_db,
+            'val_f_b': f_score_val,
+            'val_f_db': fscore_db_val,
+        }
+
+        self.log_dict(logs, prog_bar=True)
+        
+        return {'val_loss': loss, 'logs': logs}
+    
+    def test_step(self,batch,batch_idx):
+
+        #file,beats,downbeats,idx,pr = batch
+        _, beats, downbeats, _, pr, _ = batch
+        if pr.shape[1] > 100000:
+            return None
+        padded_array = cnn_pad(pr.float(),2)
+        padded_array = torch.tensor(padded_array)
+
+        if padded_array.shape[2] > 88:
+            padded_array = padded_array[:,:,21:109]
+
+        outputs = self(padded_array)
+        
+        baf = outputs[0][:,0].detach().cpu().numpy()
+        #plt.clf()
+        #plt.plot(np.arange(1000),baf[:1000])
+        #plt.savefig("temp_fig.png")
+
+        #Calculate F-Score (Beats):
+        try:
+            proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100)
+            beat_times = proc(outputs[0][:,0].detach().cpu().numpy())
+            evaluate = madmom.evaluation.beats.BeatEvaluation(beat_times, beats[0].cpu())
+            f_score_test = evaluate.fmeasure
+        except Exception as e:
+            print("Test sample cannot be processed correctly. Error in beat process:",e)
+            f_score_test = 0
+            
+        #Calculate F-Score (Downbeats):
+
+        combined_0 = outputs[0].detach().cpu().numpy().squeeze()
+        combined_1 = outputs[1].detach().cpu().numpy().squeeze()
+        combined_act = np.vstack((np.maximum(combined_0 - combined_1, 0), combined_1)).T
+
+        try:
+            proc_db = madmom.features.downbeats.DBNDownBeatTrackingProcessor(beats_per_bar=[2,3,4],fps=100)
+            beat_times_db = proc_db(combined_act)
+            evaluate_db = madmom.evaluation.beats.BeatEvaluation(beat_times_db, downbeats[0].cpu(), downbeats=True)
+            fscore_db_test = evaluate_db.fmeasure
+        except Exception as e:
+            print("Test sample cannot be processed correctly. Error in downbeat process:",e)
+            fscore_db_test = 0
+        
+        logs = {
+            'f_score_b_test': f_score_test,
+            'f_score_db_test': fscore_db_test,
+        }
+
+        self.log_dict(logs, prog_bar=True)
+        
+        return {'test_loss': 0, 'logs': logs}
+
 
 class MyMadmomModule(pl.LightningModule):
     def __init__(self,args):
