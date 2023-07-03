@@ -5,7 +5,7 @@ import torch.nn as nn
 import warnings
 from beat_tracking.helper_functions import *
 from beat_tracking.data_loading import *
-from beat_tracking.modules import AudioModule, MyMadmomModule
+from beat_tracking.modules import AudioModule, MyMadmomModule_pr
 
 import pytorch_lightning as pl
 
@@ -31,10 +31,10 @@ def train(args):
     if mode == "audio":
         model = AudioModule(args)
     elif mode == "pianorolls":
-        model = MyMadmomModule(args)
+        model = MyMadmomModule_pr(args)
     #model = MyMadmomModule.load_from_checkpoint(args=args, checkpoint_path="/home/thomass/beat_tracking/ISMIR-training-all-pretty_midi-step_size_20-only_beats/9pjqc8mu/checkpoints/epoch=20-val_loss=0.09-val_f1=0.00.ckpt")
     
-    wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-full_train_"+str(full_train))
+    wandb_logger = WandbLogger(project="ISMIR-training-"+dataset+"-"+mode+"-full_train_"+str(full_train))
     
     trainer = pl.Trainer(
         default_root_dir="pl_checkpoints/",

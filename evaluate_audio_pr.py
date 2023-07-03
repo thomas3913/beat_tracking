@@ -1,5 +1,5 @@
 from beat_tracking.data_loading import Audio_and_pr_DataModule
-from beat_tracking.modules import AudioModule
+from beat_tracking.modules import AudioModule, MyMadmomModule_pr
 #import mir_eval
 import numpy as np
 import argparse
@@ -15,8 +15,10 @@ def evaluate(args):
     dataset = args.dataset
     mode = args.mode
 
-    model = AudioModule.load_from_checkpoint(args=args,checkpoint_path="ISMIR-training-all-full_train_False/6gq7iwoj/checkpoints/epoch=0-val_loss=0.17-val_f1=0.00.ckpt")
-
+    if mode == "audio":
+        model = AudioModule.load_from_checkpoint(args=args,checkpoint_path="ISMIR-training-all-audio-full_train_False/e1dy1280/checkpoints/epoch=27-val_loss=0.14-val_f1=0.00.ckpt")
+    elif mode == "pianorolls":
+        model = MyMadmomModule_pr.load_from_checkpoint(args=args,checkpoint_path="")
     
 
     trainer = pl.Trainer(
