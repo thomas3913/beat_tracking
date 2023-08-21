@@ -96,6 +96,20 @@ class LinearOutput(nn.Module):
         x = self.activation(x)  # (batch_size, sequence_length, out_features)
 
         return x
+    
+
+class TransformerBlock(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=4)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=2)
+
+    def forward(self,x):
+        
+        out = self.transformer_encoder(x)
+
+        return out
+
 
 def read_note_sequence(midi_file):
     """
@@ -276,3 +290,71 @@ class RNNJointBeatModel(nn.Module):
         y_tempo = y_tempo.transpose(1, 2)  # (batch_size, ibiVocab, seq_len)
 
         return y_beat, y_downbeat, y_tempo
+    
+
+
+class TransformerModel(nn.Module):
+
+    def __init__(self, hidden_size=512):
+        super().__init__()
+
+        in_features = get_in_features()
+
+        self.convs = ConvBlock(in_features=in_features)
+
+        #self.gru_beat = GRUBlock(in_features=hidden_size)
+        #self.gru_downbeat = GRUBlock(in_features=hidden_size)
+        #self.gru_tempo = GRUBlock(in_features=hidden_size)
+
+        self.transf_beat = TransformerBlock()
+        self.transf_downbeat = TransformerBlock()
+        self.transf_tempo = TransformerBlock()
+
+        self.out_beat = LinearOutput(in_features=hidden_size, out_features=1, activation_type='sigmoid')
+        self.out_downbeat = LinearOutput(in_features=hidden_size, out_features=1, activation_type='sigmoid')
+        self.out_tempo = LinearOutput(in_features=hidden_size, out_features=ibiVocab, activation_type='softmax')
+
+    def forward(self, x):
+        # x: (batch_size, seq_len, len(features)==4)
+        x = encode_note_sequence(x)
+
+        x = self.convs(x)  # (batch_size, seq_len, hidden_size)
+
+        x_gru_beat = self.transf_beat(x)  # (batch_size, seq_len, hidden_size)
+        x_gru_downbeat = self.transf_downbeat(x_gru_beat)  # (batch_size, seq_len, hidden_size)
+        x_gru_tempo = self.transf_tempo(x_gru_downbeat)  # (batch_size, seq_len, hidden_size)
+
+        y_beat = self.out_beat(x_gru_beat)  # (batch_size, seq_len, 1)
+        y_downbeat = self.out_downbeat(x_gru_downbeat)  # (batch_size, seq_len, 1)
+        y_tempo = self.out_tempo(x_gru_tempo)  # (batch_size, seq_len, ibiVocab)
+
+        # squeeze and transpose
+        y_beat = y_beat.squeeze(2)  # (batch_size, seq_len)
+        y_downbeat = y_downbeat.squeeze(2)  # (batch_size, seq_len)
+        y_tempo = y_tempo.transpose(1, 2)  # (batch_size, ibiVocab, seq_len)
+
+        return y_beat, y_downbeat, y_tempo
+
+
+
+
+class PositionalEncoding(nn.Module):
+
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 500):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-np.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+        """
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)
