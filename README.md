@@ -27,6 +27,8 @@ python train_audio_pr.py --mode "audio" --dataset "all" --epochs 100 --stepsize 
 
 python train_audio_pr.py --mode "pianorolls" --dataset "all" --epochs 100 --stepsize 50
 
+python train_transformer.py --dataset "all" --epochs 100 --learning_rate 1e-4
+
 Values for dataset:
 "asap" "amaps" "cpm" "all"
 
