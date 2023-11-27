@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 # TRAINING LOOP
 
 def train(args):
-    data = Pm2sDataModule(args)
+    data = CombinedDataModule(args)
     
     #checkpoints_dir = args.checkpoints_dir
     #figures_dir = args.figures_dir

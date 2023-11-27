@@ -298,7 +298,14 @@ class TransformerModel(nn.Module):
     def __init__(self, hidden_size=512):
         super().__init__()
 
+        input_dim=531
+        dropout = 0.15
+
         in_features = get_in_features()
+
+        self.positional_encoder = PositionalEncoding(
+            d_model=input_dim, dropout=dropout, max_len=500
+        )
 
         self.convs = ConvBlock(in_features=in_features)
 
@@ -316,10 +323,14 @@ class TransformerModel(nn.Module):
 
     def forward(self, x):
         # x: (batch_size, seq_len, len(features)==4)
+        #print("X1",x.shape)
         x = encode_note_sequence(x)
+        x = self.positional_encoder(x)
+        #x = torch.unsqueeze(x,dim= 1)
 
+        
         x = self.convs(x)  # (batch_size, seq_len, hidden_size)
-
+        #print("X4",x.shape)
         x_gru_beat = self.transf_beat(x)  # (batch_size, seq_len, hidden_size)
         x_gru_downbeat = self.transf_downbeat(x_gru_beat)  # (batch_size, seq_len, hidden_size)
         x_gru_tempo = self.transf_tempo(x_gru_downbeat)  # (batch_size, seq_len, hidden_size)
@@ -336,8 +347,6 @@ class TransformerModel(nn.Module):
         return y_beat, y_downbeat, y_tempo
 
 
-
-
 class PositionalEncoding(nn.Module):
 
     def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 500):
@@ -348,7 +357,8 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(torch.arange(0, d_model, 2) * (-np.log(10000.0) / d_model))
         pe = torch.zeros(max_len, d_model)
         pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
+
+        pe[:, 1::2] = torch.cos(position * div_term)[:,:-1]
         self.register_buffer('pe', pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -356,5 +366,6 @@ class PositionalEncoding(nn.Module):
         Args:
             x: Tensor, shape [seq_len, batch_size, embedding_dim]
         """
+
         x = x + self.pe[:x.size(0)]
         return self.dropout(x)
