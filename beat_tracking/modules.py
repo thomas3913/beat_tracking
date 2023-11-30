@@ -912,7 +912,7 @@ class TransformerModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         # Data
-        x, y_b, y_db, y_ibi, length, _, _ ,_= batch
+        x, y_b, y_db, y_ibi, length, y_beats, _ ,_= batch
         x = x.float()
         y_b = y_b.float()
         y_db = y_db.float()
@@ -977,6 +977,26 @@ class TransformerModule(pl.LightningModule):
         recs_db /= x.shape[0]
         fs_db /= x.shape[0]
 
+        #Post processing with RNNJointBeatProcessor:
+        post_processor = RNNJointBeatProcessor()
+        beats = post_processor.process(x,y_b_hat,y_db_hat)
+        evaluate = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats)
+        f_b_post = evaluate.fmeasure
+            
+        # Post processing with DBN:
+        beat_activation_function, beat_activation_function_modified, downbeat_activation_function, downbeat_activation_function_modified = get_beat_activation_function_from_probs(x,y_b_hat,y_db_hat)
+        proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100,min_bpm=55.0, max_bpm=215.0, transition_lambda=100, threshold=0.05)
+        assert len(beat_activation_function) > 0
+        beats_DBN = proc(beat_activation_function)
+        evaluate_b_DBN = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN)
+        f_b_post_DBN = evaluate_b_DBN.fmeasure
+        
+        proc_modified = madmom.features.beats.DBNBeatTrackingProcessor(fps=100,min_bpm=55.0, max_bpm=215.0, transition_lambda=100, threshold=0.05)
+        beats_DBN_modified = proc_modified(beat_activation_function_modified)        
+        
+        evaluate_b_DBN_modified = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN_modified)
+        f_b_post_DBN_modified = evaluate_b_DBN_modified.fmeasure
+
         # Logging
         logs = {
             'val_loss': loss,
@@ -991,6 +1011,9 @@ class TransformerModule(pl.LightningModule):
             'val_prec_db': precs_db,
             #'val_rec_db': recs_db,
             'val_f_db': fs_db,
+            'f_b_postprocessing':f_b_post,
+            'f_b_postprocessing_DBN':f_b_post_DBN,
+            'f_b_postprocessing_DBN_modified':f_b_post_DBN_modified,
             #'val_f1': fs_b,  # this will be used as the monitor for logging and checkpointing callbacks
         }
         self.log_dict(logs, prog_bar=True)
@@ -1065,23 +1088,18 @@ class TransformerModule(pl.LightningModule):
         f_b_post = evaluate.fmeasure
             
         # Post processing with DBN:
-        beat_activation_function, beat_activation_function_modified = get_beat_activation_function_from_probs(x,y_b_hat,y_db_hat)
+        beat_activation_function, beat_activation_function_modified, downbeat_activation_function, downbeat_activation_function_modified = get_beat_activation_function_from_probs(x,y_b_hat,y_db_hat)
         proc = madmom.features.beats.DBNBeatTrackingProcessor(fps=100,min_bpm=55.0, max_bpm=215.0, transition_lambda=100, threshold=0.05)
         assert len(beat_activation_function) > 0
         beats_DBN = proc(beat_activation_function)
+        evaluate_b_DBN = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN)
+        f_b_post_DBN = evaluate_b_DBN.fmeasure
         
-        proc_2 = madmom.features.beats.DBNBeatTrackingProcessor(fps=100,min_bpm=55.0, max_bpm=215.0, transition_lambda=100, threshold=0.05)
-        beats_DBN_modified = proc_2(beat_activation_function_modified)
+        proc_modified = madmom.features.beats.DBNBeatTrackingProcessor(fps=100,min_bpm=55.0, max_bpm=215.0, transition_lambda=100, threshold=0.05)
+        beats_DBN_modified = proc_modified(beat_activation_function_modified)        
         
-        #plt.clf()
-        #plt.plot(np.arange(1000),beat_activation_function[:1000])
-        #plt.savefig("temp_fig_2.png")
-        
-        evaluate_2 = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN)
-        f_b_post_DBN = evaluate_2.fmeasure
-        
-        evaluate_2_modified = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN_modified)
-        f_b_post_DBN_modified = evaluate_2_modified.fmeasure
+        evaluate_b_DBN_modified = madmom.evaluation.beats.BeatEvaluation(y_beats[0].detach().cpu(), beats_DBN_modified)
+        f_b_post_DBN_modified = evaluate_b_DBN_modified.fmeasure
 
         # Logging
         logs = {
