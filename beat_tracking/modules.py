@@ -542,7 +542,7 @@ class MyMadmomModule(pl.LightningModule):
     def test_step(self,batch,batch_idx):
 
         #file,beats,downbeats,idx,pr = batch
-        _,_,_,_,_,beats,downbeats,pr = batch
+        _,_,_,_,_,beats,downbeats,pr,path = batch
         if pr.shape[1] > 100000:
             return None
         padded_array = cnn_pad(pr.float(),2)
@@ -554,9 +554,15 @@ class MyMadmomModule(pl.LightningModule):
         outputs = self(padded_array)
         
         baf = outputs[0][:,0].detach().cpu().numpy()
+        
+        #Plot beat activation function before the TCN:
         #plt.clf()
-        #plt.plot(np.arange(1000),baf[:1000])
-        #plt.savefig("temp_fig.png")
+        #plt.plot(np.arange(2000),baf[:2000])
+        #plt.title(str(path))
+        #plt.xlabel("Frames")
+        #plt.ylabel("Probability")
+        #plt.savefig("beat_activ_funct_before_DBN.png")
+        
 
         #Calculate F-Score (Beats):
         try:

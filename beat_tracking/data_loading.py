@@ -378,7 +378,7 @@ class BaseDataset(torch.utils.data.Dataset):
                 
         pianoroll = np.load(row["midi_perfm"][:-4]+"_pianoroll_pm.npy")
 
-        return note_sequence, annotations, pianoroll
+        return note_sequence, annotations, pianoroll, row["midi_perfm"]
 
 
 
@@ -390,7 +390,7 @@ class BeatDataset(BaseDataset):
     def __getitem__(self, idx):
 
         row = self._sample_row(idx)
-        note_sequence, annotations, pianoroll = self._load_data(row)
+        note_sequence, annotations, pianoroll, path = self._load_data(row)
 
         # Get model output data
         # beats downbeats
@@ -446,7 +446,8 @@ class BeatDataset(BaseDataset):
             length,
             beats,
             downbeats,
-            pianoroll
+            pianoroll,
+            path
         )
 
 
