@@ -1,6 +1,4 @@
-# beat_tracking
-beat_tracking repository
-
+# Beat Tracking Repository
 Example run commands:
 
 EVALUATION
